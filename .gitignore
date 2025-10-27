@@ -3,6 +3,13 @@
 # dependencies
 node_modules/
 
+# Node modules
+client/node_modules
+server/node_modules
+
+# Build files
+dist
+
 # Expo
 .expo/
 dist/
