@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 
@@ -7,23 +7,21 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { HelloWave } from "@/components/hello-wave";
 
-import { initDB } from "../../src/data/local/database";
-import { VehicleDao } from "../../src/data/dao/VehicleDao";
-import { LocalVehicleRepository } from "../../src/data/repositories/LocalVehicleRepository";
+import { Container } from "../../src/data/di/container";
 import { createVehicle, NewVehicle } from "../../src/domain/entities/vehicle";
 
 export default function HomeScreen() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
     if (Platform.OS !== "web") {
       (async () => {
         try {
-          // Initialize DB
-          await initDB();
-          console.log("✅ Database ready.");
+          // ✅ Initialize DI container
+          const container = Container.getInstance();
+          await container.init();
 
-          // Setup repository via dependency injection
-          const dao = new VehicleDao();
-          const vehicleRepo = new LocalVehicleRepository(dao);
+          const vehicleRepo = container.vehicleRepository;
 
           // Helper to log vehicles
           async function logAllVehicles(label: string) {
@@ -172,6 +170,7 @@ export default function HomeScreen() {
           await logAllVehicles("After concurrent inserts");
 
           console.log("✅ Repository-based DAO test completed.");
+          setReady(true);
         } catch (error) {
           console.error("❌ Repository test failed:", error);
         }
@@ -198,7 +197,9 @@ export default function HomeScreen() {
 
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">
-          Check console for detailed repository test logs
+          {ready
+            ? "✅ Repository initialized and test completed. Check console for logs."
+            : "⏳ Initializing repository..."}
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
