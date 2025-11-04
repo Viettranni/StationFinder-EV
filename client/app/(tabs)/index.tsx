@@ -19,6 +19,8 @@ import { HelloWave } from "@/components/hello-wave";
 import { Container } from "../../src/data/di/container";
 import { createVehicle, NewVehicle } from "../../src/domain/entities/vehicle";
 
+// This whole screen was to only test that the MVVM works correctly. Didnt want to create tests at this point
+
 const HomeScreen = observer(() => {
   const [containerReady, setContainerReady] = useState(false);
   const [vm, setVm] = useState<any>(null); // VehicleViewModel
@@ -172,6 +174,7 @@ const HomeScreen = observer(() => {
   );
 });
 
+// This function was only to test that the dao methods work correctly with different scenarios. didnt want to create tests at this point yet
 const runScenarioTests = async (vm: any) => {
   console.log("🏁 Running scenario tests...");
 
