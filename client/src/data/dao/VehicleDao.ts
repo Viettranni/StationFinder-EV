@@ -12,8 +12,9 @@ import {
   NewVehicle,
   createVehicle,
 } from "../../domain/entities/vehicle";
+import { IVehicleDao } from "./IVehicleDao";
 
-export class VehicleDao {
+export class VehicleDao implements IVehicleDao {
   // 🔹 Internal queue for writes
   private writeQueue: Promise<void> = Promise.resolve();
 

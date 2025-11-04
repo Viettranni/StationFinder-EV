@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import { Link } from "expo-router";
 
 import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { ThemedText } from "@/components/themed-text";
@@ -10,6 +9,7 @@ import { HelloWave } from "@/components/hello-wave";
 
 import { initDB } from "../../src/data/local/database";
 import { VehicleDao } from "../../src/data/dao/VehicleDao";
+import { LocalVehicleRepository } from "../../src/data/repositories/LocalVehicleRepository";
 import { createVehicle, NewVehicle } from "../../src/domain/entities/vehicle";
 
 export default function HomeScreen() {
@@ -17,15 +17,17 @@ export default function HomeScreen() {
     if (Platform.OS !== "web") {
       (async () => {
         try {
-          // ✅ Initialize database
+          // Initialize DB
           await initDB();
           console.log("✅ Database ready.");
 
+          // Setup repository via dependency injection
           const dao = new VehicleDao();
+          const vehicleRepo = new LocalVehicleRepository(dao);
 
-          // --- Helper to log vehicles
+          // Helper to log vehicles
           async function logAllVehicles(label: string) {
-            const vehicles = await dao.getAll();
+            const vehicles = await vehicleRepo.getAllVehicles();
             console.log(`📋 ${label}:`, vehicles);
             return vehicles;
           }
@@ -57,9 +59,10 @@ export default function HomeScreen() {
             favourites: "true",
           });
 
-          const id1 = await dao.insert(vehicle1);
+          const id1 = await vehicleRepo.addVehicle(vehicle1);
           console.log("🚗 Inserted vehicle1 with ID:", id1);
-          const id2 = await dao.insert(vehicle2);
+
+          const id2 = await vehicleRepo.addVehicle(vehicle2);
           console.log("🚗 Inserted vehicle2 with ID:", id2);
 
           await logAllVehicles("After inserts");
@@ -67,11 +70,10 @@ export default function HomeScreen() {
           // -----------------------
           // 2️⃣ Update scenarios
           // -----------------------
-          await dao.update(id1, { favourites: "true" });
+          await vehicleRepo.updateVehicle(id1, { favourites: "true" });
           console.log("💾 Updated vehicle1 favourites to true");
 
-          // Attempt partial update with only numeric fields
-          await dao.update(id2, {
+          await vehicleRepo.updateVehicle(id2, {
             batterySizeKwh: 45,
             currentBatteryState: 75,
           });
@@ -84,19 +86,18 @@ export default function HomeScreen() {
           // -----------------------
           // 3️⃣ Fetch scenarios
           // -----------------------
-          const fetched1 = await dao.getById(id1);
+          const fetched1 = await vehicleRepo.getVehicleById(id1);
           console.log("🔍 Fetched vehicle1 by ID:", fetched1);
 
-          const fetched2 = await dao.getById(9999); // non-existent
+          const fetched2 = await vehicleRepo.getVehicleById(9999);
           console.log("🔍 Fetched non-existent ID (should be null):", fetched2);
 
           // -----------------------
           // 4️⃣ Delete scenarios
           // -----------------------
-          await dao.delete(id1);
-          console.log("🗑️ Deleted vehicle1");
-          await dao.delete(id2);
-          console.log("🗑️ Deleted vehicle2");
+          await vehicleRepo.deleteVehicle(id1);
+          await vehicleRepo.deleteVehicle(id2);
+          console.log("🗑️ Deleted vehicle1 and vehicle2");
 
           await logAllVehicles("After deletions");
 
@@ -113,13 +114,13 @@ export default function HomeScreen() {
           }
 
           try {
-            await dao.insert({
+            await vehicleRepo.addVehicle({
               ...vehicle1,
               brand: "" as any,
             });
           } catch (err) {
             console.log(
-              "⚠️ DAO insert failed with empty brand:",
+              "⚠️ Repository insert failed with empty brand:",
               (err as Error).message
             );
           }
@@ -138,7 +139,8 @@ export default function HomeScreen() {
             longitude: 180,
             favourites: "true",
           });
-          const maxId = await dao.insert(maxStringVehicle);
+
+          const maxId = await vehicleRepo.addVehicle(maxStringVehicle);
           console.log("🚀 Inserted max-length vehicle with ID:", maxId);
           await logAllVehicles("After max-length insert");
 
@@ -146,10 +148,10 @@ export default function HomeScreen() {
           // 7️⃣ Concurrency & transaction
           // -----------------------
           console.log("⏱️ Testing concurrent inserts...");
-          const promises = [];
+          const promises: Promise<number>[] = [];
           for (let i = 0; i < 5; i++) {
             promises.push(
-              dao.insert(
+              vehicleRepo.addVehicle(
                 createVehicle({
                   brand: `Brand ${i}`,
                   model: `Model ${i}`,
@@ -169,9 +171,9 @@ export default function HomeScreen() {
 
           await logAllVehicles("After concurrent inserts");
 
-          console.log("✅ DAO comprehensive test completed.");
+          console.log("✅ Repository-based DAO test completed.");
         } catch (error) {
-          console.error("❌ DAO test failed:", error);
+          console.error("❌ Repository test failed:", error);
         }
       })();
     } else {
@@ -190,13 +192,13 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Vehicle DAO Test</ThemedText>
+        <ThemedText type="title">Vehicle Repository Test</ThemedText>
         <HelloWave />
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">
-          Check console for detailed DAO test logs
+          Check console for detailed repository test logs
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
