@@ -1,8 +1,17 @@
+// src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  Button,
+  View,
+  FlatList,
+  Alert,
+  Platform,
+} from "react-native";
+import { observer } from "mobx-react-lite";
 import { Image } from "expo-image";
 
-import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { HelloWave } from "@/components/hello-wave";
@@ -10,210 +19,272 @@ import { HelloWave } from "@/components/hello-wave";
 import { Container } from "../../src/data/di/container";
 import { createVehicle, NewVehicle } from "../../src/domain/entities/vehicle";
 
-export default function HomeScreen() {
-  const [ready, setReady] = useState(false);
+const HomeScreen = observer(() => {
+  const [containerReady, setContainerReady] = useState(false);
+  const [vm, setVm] = useState<any>(null); // VehicleViewModel
+
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [year, setYear] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
       (async () => {
         try {
-          // ✅ Initialize DI container
-          const container = Container.getInstance();
-          await container.init();
+          const container = await Container.getInstance();
+          setVm(container.vehicleViewModel);
 
-          const vehicleRepo = container.vehicleRepository;
+          // Run all scenario tests
+          //await runScenarioTests(container.vehicleViewModel);
 
-          // Helper to log vehicles
-          async function logAllVehicles(label: string) {
-            const vehicles = await vehicleRepo.getAllVehicles();
-            console.log(`📋 ${label}:`, vehicles);
-            return vehicles;
-          }
-
-          // -----------------------
-          // 1️⃣ Insert valid vehicles
-          // -----------------------
-          const vehicle1: NewVehicle = createVehicle({
-            brand: "Tesla",
-            model: "Model X",
-            year: 2025,
-            batterySizeKwh: 100,
-            currentBatteryState: 90,
-            averageConsumption: 15.5,
-            latitude: 37.7749,
-            longitude: -122.4194,
-            favourites: "false",
-          });
-
-          const vehicle2: NewVehicle = createVehicle({
-            brand: "Nissan",
-            model: "Leaf",
-            year: 2023,
-            batterySizeKwh: 40,
-            currentBatteryState: 80,
-            averageConsumption: 12.3,
-            latitude: 35.6895,
-            longitude: 139.6917,
-            favourites: "true",
-          });
-
-          const id1 = await vehicleRepo.addVehicle(vehicle1);
-          console.log("🚗 Inserted vehicle1 with ID:", id1);
-
-          const id2 = await vehicleRepo.addVehicle(vehicle2);
-          console.log("🚗 Inserted vehicle2 with ID:", id2);
-
-          await logAllVehicles("After inserts");
-
-          // -----------------------
-          // 2️⃣ Update scenarios
-          // -----------------------
-          await vehicleRepo.updateVehicle(id1, { favourites: "true" });
-          console.log("💾 Updated vehicle1 favourites to true");
-
-          await vehicleRepo.updateVehicle(id2, {
-            batterySizeKwh: 45,
-            currentBatteryState: 75,
-          });
-          console.log(
-            "💾 Updated vehicle2 batterySizeKwh and currentBatteryState"
-          );
-
-          await logAllVehicles("After updates");
-
-          // -----------------------
-          // 3️⃣ Fetch scenarios
-          // -----------------------
-          const fetched1 = await vehicleRepo.getVehicleById(id1);
-          console.log("🔍 Fetched vehicle1 by ID:", fetched1);
-
-          const fetched2 = await vehicleRepo.getVehicleById(9999);
-          console.log("🔍 Fetched non-existent ID (should be null):", fetched2);
-
-          // -----------------------
-          // 4️⃣ Delete scenarios
-          // -----------------------
-          await vehicleRepo.deleteVehicle(id1);
-          await vehicleRepo.deleteVehicle(id2);
-          console.log("🗑️ Deleted vehicle1 and vehicle2");
-
-          await logAllVehicles("After deletions");
-
-          // -----------------------
-          // 5️⃣ Validation & errors
-          // -----------------------
-          try {
-            createVehicle({ model: "Unknown" } as any); // missing brand
-          } catch (err) {
-            console.log(
-              "⚠️ Validation error (missing brand):",
-              (err as Error).message
-            );
-          }
-
-          try {
-            await vehicleRepo.addVehicle({
-              ...vehicle1,
-              brand: "" as any,
-            });
-          } catch (err) {
-            console.log(
-              "⚠️ Repository insert failed with empty brand:",
-              (err as Error).message
-            );
-          }
-
-          // -----------------------
-          // 6️⃣ Edge cases
-          // -----------------------
-          const maxStringVehicle = createVehicle({
-            brand: "B".repeat(255),
-            model: "M".repeat(255),
-            year: 9999,
-            batterySizeKwh: 9999,
-            currentBatteryState: 100,
-            averageConsumption: 99.99,
-            latitude: 90,
-            longitude: 180,
-            favourites: "true",
-          });
-
-          const maxId = await vehicleRepo.addVehicle(maxStringVehicle);
-          console.log("🚀 Inserted max-length vehicle with ID:", maxId);
-          await logAllVehicles("After max-length insert");
-
-          // -----------------------
-          // 7️⃣ Concurrency & transaction
-          // -----------------------
-          console.log("⏱️ Testing concurrent inserts...");
-          const promises: Promise<number>[] = [];
-          for (let i = 0; i < 5; i++) {
-            promises.push(
-              vehicleRepo.addVehicle(
-                createVehicle({
-                  brand: `Brand ${i}`,
-                  model: `Model ${i}`,
-                  year: 2025 + i,
-                  batterySizeKwh: 50 + i,
-                  currentBatteryState: 100,
-                  averageConsumption: 10 + i,
-                  latitude: 0,
-                  longitude: 0,
-                  favourites: "false",
-                })
-              )
-            );
-          }
-          const ids = await Promise.all(promises);
-          console.log("🚀 Concurrent inserts completed, IDs:", ids);
-
-          await logAllVehicles("After concurrent inserts");
-
-          console.log("✅ Repository-based DAO test completed.");
-          setReady(true);
-        } catch (error) {
-          console.error("❌ Repository test failed:", error);
+          await container.vehicleViewModel.fetchVehicles();
+          setContainerReady(true);
+        } catch (err) {
+          console.error("Container init failed:", err);
         }
       })();
-    } else {
-      console.log("ℹ️ Skipping SQLite init on web.");
     }
   }, []);
 
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
-      headerImage={
-        <Image
-          source={require("@/assets/images/partial-react-logo.png")}
-          style={styles.reactLogo}
-        />
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Vehicle Repository Test</ThemedText>
-        <HelloWave />
+  if (!containerReady || !vm) {
+    return (
+      <ThemedView
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <ThemedText type="title">⏳ Initializing repository...</ThemedText>
       </ThemedView>
+    );
+  }
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">
-          {ready
-            ? "✅ Repository initialized and test completed. Check console for logs."
-            : "⏳ Initializing repository..."}
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const saveVehicle = async () => {
+    if (!brand || !model || !year) {
+      Alert.alert("Validation", "Brand, model, and year are required.");
+      return;
+    }
+
+    const vehicleData: NewVehicle = createVehicle({
+      brand,
+      model,
+      year: Number(year),
+      batterySizeKwh: 50,
+      currentBatteryState: 100,
+      averageConsumption: 10,
+      latitude: 0,
+      longitude: 0,
+      favourites: "false",
+    });
+
+    try {
+      if (editingId !== null) {
+        await vm.repo.updateVehicle(editingId, vehicleData);
+        setEditingId(null);
+      } else {
+        await vm.addVehicle(vehicleData);
+      }
+      setBrand("");
+      setModel("");
+      setYear("");
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  };
+
+  const startEdit = (vehicle: any) => {
+    setEditingId(vehicle.id);
+    setBrand(vehicle.brand);
+    setModel(vehicle.model);
+    setYear(vehicle.year.toString());
+  };
+
+  const deleteVehicle = async (id: number) => {
+    Alert.alert("Confirm Delete", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => await vm.deleteVehicle(id),
+      },
+    ]);
+  };
+
+  const renderVehicleItem = ({ item }: any) => (
+    <View style={styles.vehicleItem}>
+      <ThemedText>
+        {item.brand} {item.model} ({item.year})
+      </ThemedText>
+      <View style={styles.itemButtons}>
+        <Button title="Edit" onPress={() => startEdit(item)} />
+        <Button
+          title="Delete"
+          color="red"
+          onPress={() => deleteVehicle(item.id)}
+        />
+      </View>
+    </View>
   );
-}
+
+  return (
+    <FlatList
+      data={vm.state.vehicles}
+      keyExtractor={(item: any) => item.id.toString()}
+      renderItem={renderVehicleItem}
+      ListHeaderComponent={
+        <ThemedView style={styles.headerContainer}>
+          <Image
+            source={require("@/assets/images/partial-react-logo.png")}
+            style={styles.reactLogo}
+          />
+          <ThemedText type="title">
+            {editingId !== null ? "Edit Vehicle" : "Add Vehicle"}
+          </ThemedText>
+          <HelloWave />
+
+          <View style={styles.formContainer}>
+            <TextInput
+              placeholder="Brand"
+              value={brand}
+              onChangeText={setBrand}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Model"
+              value={model}
+              onChangeText={setModel}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Year"
+              value={year}
+              onChangeText={setYear}
+              keyboardType="numeric"
+              style={styles.input}
+            />
+            <Button
+              title={editingId !== null ? "Update Vehicle" : "Add Vehicle"}
+              onPress={saveVehicle}
+            />
+          </View>
+        </ThemedView>
+      }
+      contentContainerStyle={{ paddingBottom: 50 }}
+    />
+  );
+});
+
+const runScenarioTests = async (vm: any) => {
+  console.log("🏁 Running scenario tests...");
+
+  // 1️⃣ Insert vehicles
+  const vehicle1 = createVehicle({
+    brand: "Tesla",
+    model: "Model X",
+    year: 2025,
+    batterySizeKwh: 100,
+    currentBatteryState: 90,
+    averageConsumption: 15.5,
+    latitude: 37.7749,
+    longitude: -122.4194,
+    favourites: "false",
+  });
+
+  const vehicle2 = createVehicle({
+    brand: "Nissan",
+    model: "Leaf",
+    year: 2023,
+    batterySizeKwh: 40,
+    currentBatteryState: 80,
+    averageConsumption: 12.3,
+    latitude: 35.6895,
+    longitude: 139.6917,
+    favourites: "true",
+  });
+
+  const id1 = await vm.addVehicle(vehicle1);
+  const id2 = await vm.addVehicle(vehicle2);
+
+  await vm.repo.updateVehicle(id1, { favourites: "true" });
+  await vm.repo.updateVehicle(id2, {
+    batterySizeKwh: 45,
+    currentBatteryState: 75,
+  });
+
+  const fetched1 = await vm.repo.getVehicleById(id1);
+  const fetched2 = await vm.repo.getVehicleById(9999);
+  console.log("Fetched vehicle1:", fetched1);
+  console.log("Fetched non-existent ID:", fetched2);
+
+  await vm.deleteVehicle(id1);
+  await vm.deleteVehicle(id2);
+
+  // Validation errors
+  try {
+    createVehicle({ model: "Unknown" } as any);
+  } catch (err) {
+    console.log(err);
+  }
+  try {
+    await vm.addVehicle({ ...vehicle1, brand: "" as any });
+  } catch (err) {
+    console.log(err);
+  }
+
+  // Edge case
+  const maxVehicle = createVehicle({
+    brand: "B".repeat(255),
+    model: "M".repeat(255),
+    year: 9999,
+    batterySizeKwh: 9999,
+    currentBatteryState: 100,
+    averageConsumption: 99.99,
+    latitude: 90,
+    longitude: 180,
+    favourites: "true",
+  });
+  await vm.addVehicle(maxVehicle);
+
+  // Concurrency
+  const promises: Promise<number>[] = [];
+  for (let i = 0; i < 5; i++) {
+    promises.push(
+      vm.addVehicle(
+        createVehicle({
+          brand: `Brand ${i}`,
+          model: `Model ${i}`,
+          year: 2025 + i,
+          batterySizeKwh: 50 + i,
+          currentBatteryState: 100,
+          averageConsumption: 10 + i,
+          latitude: 0,
+          longitude: 0,
+          favourites: "false",
+        })
+      )
+    );
+  }
+  await Promise.all(promises);
+};
 
 const styles = StyleSheet.create({
-  titleContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
-  stepContainer: { gap: 8, marginBottom: 8 },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
+  headerContainer: { padding: 16, alignItems: "center" },
+  formContainer: { width: "100%", marginTop: 16, gap: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    borderRadius: 6,
+    width: "100%",
   },
+  vehicleItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    alignItems: "center",
+  },
+  itemButtons: { flexDirection: "row", gap: 8 },
+  reactLogo: { height: 120, width: 120, marginBottom: 8 },
 });
+
+export default HomeScreen;

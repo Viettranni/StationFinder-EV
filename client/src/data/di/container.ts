@@ -1,25 +1,32 @@
-// src/data/di/Container.ts
-import { initDB, getDB } from "../local/database";
+// src/di/Container.ts
+import { initDB } from "../local/database";
 import { VehicleDao } from "../dao/VehicleDao";
 import { LocalVehicleRepository } from "../repositories/LocalVehicleRepository";
+import { VehicleViewModel } from "../../presentation/VehicleViewModel";
 
 export class Container {
-  private static instance: Container;
+  public vehicleViewModel!: VehicleViewModel;
 
-  public vehicleRepository!: LocalVehicleRepository;
+  private static instance: Container | null = null;
 
-  private constructor() {}
+  private constructor() {} // private constructor prevents external instantiation
 
-  static getInstance(): Container {
+  static async getInstance(): Promise<Container> {
     if (!Container.instance) {
-      Container.instance = new Container();
+      const container = new Container();
+      await container.init();
+      Container.instance = container;
     }
     return Container.instance;
   }
 
-  async init() {
-    await initDB(); // ✅ Initialize SQLite
-    const dao = new VehicleDao(); // DAO now has access to the ready DB
-    this.vehicleRepository = new LocalVehicleRepository(dao);
+  private async init() {
+    await initDB(); // Initialize SQLite DB
+    const dao = new VehicleDao();
+    const repo = new LocalVehicleRepository(dao);
+    this.vehicleViewModel = new VehicleViewModel(repo);
   }
 }
+
+// Exporting a single promise that resolves to the singleton container
+export const containerPromise = Container.getInstance();
