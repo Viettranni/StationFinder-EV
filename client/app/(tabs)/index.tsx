@@ -1,25 +1,177 @@
 import React, { useEffect } from "react";
-import { Image } from "expo-image";
 import { Platform, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { Link } from "expo-router";
 
-import { HelloWave } from "@/components/hello-wave";
 import ParallaxScrollView from "@/components/parallax-scroll-view";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { HelloWave } from "@/components/hello-wave";
 
-// ✅ Import your database initialization function
 import { initDB } from "../../src/data/local/database";
+import { VehicleDao } from "../../src/data/dao/VehicleDao";
+import { createVehicle, NewVehicle } from "../../src/domain/entities/vehicle";
 
 export default function HomeScreen() {
-  // Initialize the database when the screen loads
   useEffect(() => {
     if (Platform.OS !== "web") {
       (async () => {
         try {
+          // ✅ Initialize database
           await initDB();
+          console.log("✅ Database ready.");
+
+          const dao = new VehicleDao();
+
+          // --- Helper to log vehicles
+          async function logAllVehicles(label: string) {
+            const vehicles = await dao.getAll();
+            console.log(`📋 ${label}:`, vehicles);
+            return vehicles;
+          }
+
+          // -----------------------
+          // 1️⃣ Insert valid vehicles
+          // -----------------------
+          const vehicle1: NewVehicle = createVehicle({
+            brand: "Tesla",
+            model: "Model X",
+            year: 2025,
+            batterySizeKwh: 100,
+            currentBatteryState: 90,
+            averageConsumption: 15.5,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            favourites: "false",
+          });
+
+          const vehicle2: NewVehicle = createVehicle({
+            brand: "Nissan",
+            model: "Leaf",
+            year: 2023,
+            batterySizeKwh: 40,
+            currentBatteryState: 80,
+            averageConsumption: 12.3,
+            latitude: 35.6895,
+            longitude: 139.6917,
+            favourites: "true",
+          });
+
+          const id1 = await dao.insert(vehicle1);
+          console.log("🚗 Inserted vehicle1 with ID:", id1);
+          const id2 = await dao.insert(vehicle2);
+          console.log("🚗 Inserted vehicle2 with ID:", id2);
+
+          await logAllVehicles("After inserts");
+
+          // -----------------------
+          // 2️⃣ Update scenarios
+          // -----------------------
+          await dao.update(id1, { favourites: "true" });
+          console.log("💾 Updated vehicle1 favourites to true");
+
+          // Attempt partial update with only numeric fields
+          await dao.update(id2, {
+            batterySizeKwh: 45,
+            currentBatteryState: 75,
+          });
+          console.log(
+            "💾 Updated vehicle2 batterySizeKwh and currentBatteryState"
+          );
+
+          await logAllVehicles("After updates");
+
+          // -----------------------
+          // 3️⃣ Fetch scenarios
+          // -----------------------
+          const fetched1 = await dao.getById(id1);
+          console.log("🔍 Fetched vehicle1 by ID:", fetched1);
+
+          const fetched2 = await dao.getById(9999); // non-existent
+          console.log("🔍 Fetched non-existent ID (should be null):", fetched2);
+
+          // -----------------------
+          // 4️⃣ Delete scenarios
+          // -----------------------
+          await dao.delete(id1);
+          console.log("🗑️ Deleted vehicle1");
+          await dao.delete(id2);
+          console.log("🗑️ Deleted vehicle2");
+
+          await logAllVehicles("After deletions");
+
+          // -----------------------
+          // 5️⃣ Validation & errors
+          // -----------------------
+          try {
+            createVehicle({ model: "Unknown" } as any); // missing brand
+          } catch (err) {
+            console.log(
+              "⚠️ Validation error (missing brand):",
+              (err as Error).message
+            );
+          }
+
+          try {
+            await dao.insert({
+              ...vehicle1,
+              brand: "" as any,
+            });
+          } catch (err) {
+            console.log(
+              "⚠️ DAO insert failed with empty brand:",
+              (err as Error).message
+            );
+          }
+
+          // -----------------------
+          // 6️⃣ Edge cases
+          // -----------------------
+          const maxStringVehicle = createVehicle({
+            brand: "B".repeat(255),
+            model: "M".repeat(255),
+            year: 9999,
+            batterySizeKwh: 9999,
+            currentBatteryState: 100,
+            averageConsumption: 99.99,
+            latitude: 90,
+            longitude: 180,
+            favourites: "true",
+          });
+          const maxId = await dao.insert(maxStringVehicle);
+          console.log("🚀 Inserted max-length vehicle with ID:", maxId);
+          await logAllVehicles("After max-length insert");
+
+          // -----------------------
+          // 7️⃣ Concurrency & transaction
+          // -----------------------
+          console.log("⏱️ Testing concurrent inserts...");
+          const promises = [];
+          for (let i = 0; i < 5; i++) {
+            promises.push(
+              dao.insert(
+                createVehicle({
+                  brand: `Brand ${i}`,
+                  model: `Model ${i}`,
+                  year: 2025 + i,
+                  batterySizeKwh: 50 + i,
+                  currentBatteryState: 100,
+                  averageConsumption: 10 + i,
+                  latitude: 0,
+                  longitude: 0,
+                  favourites: "false",
+                })
+              )
+            );
+          }
+          const ids = await Promise.all(promises);
+          console.log("🚀 Concurrent inserts completed, IDs:", ids);
+
+          await logAllVehicles("After concurrent inserts");
+
+          console.log("✅ DAO comprehensive test completed.");
         } catch (error) {
-          console.error("❌ Database initialization failed:", error);
+          console.error("❌ DAO test failed:", error);
         }
       })();
     } else {
@@ -38,71 +190,13 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">Vehicle DAO Test</ThemedText>
         <HelloWave />
       </ThemedView>
 
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{" "}
-          to see changes. Press{" "}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: "cmd + d",
-              android: "cmd + m",
-              web: "F12",
-            })}
-          </ThemedText>{" "}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction
-              title="Action"
-              icon="cube"
-              onPress={() => alert("Action pressed")}
-            />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert("Share pressed")}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert("Delete pressed")}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
-
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">
-            npm run reset-project
-          </ThemedText>{" "}
-          to get a fresh <ThemedText type="defaultSemiBold">app</ThemedText>{" "}
-          directory. This will move the current{" "}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{" "}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
+        <ThemedText type="subtitle">
+          Check console for detailed DAO test logs
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
@@ -110,15 +204,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
+  titleContainer: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stepContainer: { gap: 8, marginBottom: 8 },
   reactLogo: {
     height: 178,
     width: 290,
