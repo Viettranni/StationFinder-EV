@@ -14,12 +14,9 @@ export async function initDB() {
     // ✅ Run this OUTSIDE any transaction
     await db.execAsync("PRAGMA journal_mode = WAL;");
 
-    // ✅ Table creation WITHIN a transaction (safe rollback if one fails)
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(CREATE_VEHICLES_TABLE);
-      await db.execAsync(CREATE_PROVIDERS_TABLE);
-      await db.execAsync(CREATE_CHARGE_TYPES_TABLE);
-    });
+    await db.execAsync(CREATE_VEHICLES_TABLE);
+    await db.execAsync(CREATE_PROVIDERS_TABLE);
+    await db.execAsync(CREATE_CHARGE_TYPES_TABLE);
 
     console.log("✅ Database initialized and all tables ready.");
   } catch (err) {
