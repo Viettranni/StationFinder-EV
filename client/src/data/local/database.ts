@@ -1,6 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import { CREATE_VEHICLES_TABLE } from "./queries/VehicleQueries";
 import { CREATE_PROVIDERS_TABLE } from "./queries/ProviderQueries";
+import { CREATE_CHARGE_TYPES_TABLE } from "./queries/ChargeTypeQueries";
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
@@ -16,6 +17,7 @@ export async function initDB() {
       // ✅ Create both tables atomically (if one fails, both rollback)
       await db.execAsync(CREATE_VEHICLES_TABLE);
       await db.execAsync(CREATE_PROVIDERS_TABLE);
+      await db.execAsync(CREATE_CHARGE_TYPES_TABLE);
     });
 
     console.log("✅ Database initialized and all tables ready.");
