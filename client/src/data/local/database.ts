@@ -6,15 +6,16 @@ import { CREATE_CHARGE_TYPES_TABLE } from "./queries/ChargeTypeQueries";
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
 export async function initDB() {
-  if (dbInstance) return dbInstance; // ✅ Reuse existing connection
+  if (dbInstance) return dbInstance; // ✅ reuse connection
 
   const db = await SQLite.openDatabaseAsync("evo_route.db");
 
   try {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync("PRAGMA journal_mode = WAL;");
+    // ✅ Run this OUTSIDE any transaction
+    await db.execAsync("PRAGMA journal_mode = WAL;");
 
-      // ✅ Create both tables atomically (if one fails, both rollback)
+    // ✅ Table creation WITHIN a transaction (safe rollback if one fails)
+    await db.withTransactionAsync(async () => {
       await db.execAsync(CREATE_VEHICLES_TABLE);
       await db.execAsync(CREATE_PROVIDERS_TABLE);
       await db.execAsync(CREATE_CHARGE_TYPES_TABLE);
