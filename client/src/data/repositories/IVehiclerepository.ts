@@ -1,5 +1,5 @@
 // src/domain/repositories/IVehicleRepository.ts
-import { Vehicle, NewVehicle } from "../../domain/entities/vehicle";
+import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export interface IVehicleRepository {
   getAllVehicles(): Promise<Vehicle[]>;

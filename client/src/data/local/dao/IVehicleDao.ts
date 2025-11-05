@@ -1,5 +1,5 @@
 // src/data/dao/IVehicleDao.ts
-import { Vehicle, NewVehicle } from "../../domain/entities/vehicle";
+import { Vehicle, NewVehicle } from "../../../domain/entities/Vehicle";
 
 export interface IVehicleDao {
   getAll(): Promise<Vehicle[]>;

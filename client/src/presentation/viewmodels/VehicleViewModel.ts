@@ -1,7 +1,7 @@
 // src/viewmodels/VehicleViewModel.ts
 import { makeAutoObservable, runInAction } from "mobx";
-import { IVehicleRepository } from "../data/repositories/IVehiclerepository";
-import { Vehicle, NewVehicle } from "../domain/entities/vehicle";
+import { IVehicleRepository } from "../../data/repositories/IVehiclerepository";
+import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export interface VehicleUIState {
   vehicles: Vehicle[];

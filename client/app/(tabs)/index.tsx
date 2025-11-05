@@ -19,12 +19,12 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { HelloWave } from "@/components/hello-wave";
 
-import { Container } from "../../src/data/di/container";
+import { Container } from "../../src/di/container";
 import {
   createVehicle,
   NewVehicle,
   Vehicle,
-} from "../../src/domain/entities/vehicle";
+} from "../../src/domain/entities/Vehicle";
 
 const HomeScreen = observer(() => {
   const [containerReady, setContainerReady] = useState(false);

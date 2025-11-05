@@ -1,7 +1,7 @@
 // src/data/repositories/LocalVehicleRepository.ts
 import { IVehicleRepository } from "./IVehiclerepository";
-import { IVehicleDao } from "../dao/IVehicleDao";
-import { Vehicle, NewVehicle } from "../../domain/entities/vehicle";
+import { IVehicleDao } from "../local/dao/IVehicleDao";
+import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export class LocalVehicleRepository implements IVehicleRepository {
   constructor(private readonly dao: IVehicleDao) {}

@@ -1,6 +1,6 @@
 // src/data/local/database.ts
 import * as SQLite from "expo-sqlite";
-import { CREATE_VEHICLES_TABLE } from "./queries";
+import { CREATE_VEHICLES_TABLE } from "./queries/VehicleQueries";
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 

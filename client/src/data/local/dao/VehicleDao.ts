@@ -1,17 +1,17 @@
 // src/data/dao/VehicleDao.ts
-import { getDB } from "../local/database";
+import { getDB } from "../database";
 import {
   INSERT_VEHICLE,
   SELECT_ALL_VEHICLES,
   SELECT_VEHICLE_BY_ID,
   UPDATE_VEHICLE,
   DELETE_VEHICLE,
-} from "../local/queries";
+} from "../queries/VehicleQueries";
 import {
   Vehicle,
   NewVehicle,
   createVehicle,
-} from "../../domain/entities/vehicle";
+} from "../../../domain/entities/Vehicle";
 import { IVehicleDao } from "./IVehicleDao";
 
 export class VehicleDao implements IVehicleDao {

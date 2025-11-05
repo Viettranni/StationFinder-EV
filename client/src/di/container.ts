@@ -1,8 +1,8 @@
 // src/di/Container.ts
-import { initDB } from "../local/database";
-import { VehicleDao } from "../dao/VehicleDao";
-import { LocalVehicleRepository } from "../repositories/LocalVehicleRepository";
-import { VehicleViewModel } from "../../presentation/VehicleViewModel";
+import { initDB } from "../data/local/database";
+import { VehicleDao } from "../data/local/dao/VehicleDao";
+import { LocalVehicleRepository } from "../data/repositories/LocalVehicleRepository";
+import { VehicleViewModel } from "../presentation/viewmodels/VehicleViewModel";
 
 export class Container {
   public vehicleViewModel!: VehicleViewModel;
