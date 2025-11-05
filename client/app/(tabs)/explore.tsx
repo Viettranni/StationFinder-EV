@@ -25,7 +25,7 @@ import {
 } from "../../src/domain/entities/ChargeType";
 
 type CombinedItem = Provider | ChargeType;
-
+// Only for testing the provider and chargetype filters
 const ExploreScreen = observer(() => {
   const [providerVm, setProviderVm] = useState<any>(null);
   const [chargeVm, setChargeVm] = useState<any>(null);
