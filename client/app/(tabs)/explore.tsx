@@ -1,112 +1,180 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+// src/screens/ProviderScreen.tsx
+import React, { useEffect, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Button,
+  Alert,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  FlatList,
+} from "react-native";
+import { observer } from "mobx-react-lite";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { Container } from "../../src/di/container";
+import { Provider, NewProvider } from "../../src/domain/entities/Provider";
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
+const ProviderScreen = observer(() => {
+  const [vm, setVm] = useState<any>(null);
+  const [ready, setReady] = useState(false);
+  const [name, setName] = useState("");
+  const [selected, setSelected] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const container = await Container.getInstance();
+      setVm(container.providerViewModel);
+      await container.providerViewModel.fetchProviders();
+      setReady(true);
+    })();
+  }, []);
+
+  if (!ready || !vm) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator size="large" />
       </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
+    );
+  }
+
+  const saveProvider = async () => {
+    if (!name.trim()) return Alert.alert("Validation", "Name is required");
+    const provider: NewProvider = {
+      name,
+      selected: selected ? "true" : "false",
+    };
+
+    try {
+      if (editingId) {
+        await vm.updateProvider(editingId, provider);
+        setEditingId(null);
+      } else {
+        await vm.addProvider(provider);
+      }
+      setName("");
+      setSelected(false);
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    }
+  };
+
+  const startEdit = (p: Provider) => {
+    setEditingId(p.id);
+    setName(p.name);
+    setSelected(p.selected === "true");
+  };
+
+  const deleteProvider = async (id: number) => {
+    Alert.alert("Confirm", "Delete this provider?", [
+      { text: "Cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => vm.deleteProvider(id),
+      },
+    ]);
+  };
+
+  const renderItem = ({ item }: { item: Provider }) => (
+    <View style={styles.item}>
+      <ThemedText>{item.name}</ThemedText>
+      <ThemedText>Selected: {item.selected}</ThemedText>
+      <View style={styles.buttons}>
+        <Button title="Edit" onPress={() => startEdit(item)} />
+        <Button
+          title="Delete"
+          color="red"
+          onPress={() => deleteProvider(item.id)}
         />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      </View>
+    </View>
   );
-}
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ThemedView style={{ flex: 1, padding: 16 }}>
+        <FlatList
+          data={vm.state.providers}
+          keyExtractor={(i: Provider) => i.id.toString()}
+          renderItem={renderItem}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <ThemedText type="title" style={{ marginBottom: 8 }}>
+                {editingId ? "Edit Provider" : "Add Provider"}
+              </ThemedText>
+
+              <TextInput
+                placeholder="Provider Name"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+
+              <View style={styles.row}>
+                <ThemedText>Selected</ThemedText>
+                <Switch value={selected} onValueChange={setSelected} />
+              </View>
+
+              <Button
+                title={editingId ? "Update" : "Add"}
+                onPress={saveProvider}
+              />
+
+              {vm.state.loading && <ActivityIndicator style={{ margin: 10 }} />}
+            </View>
+          }
+          ListHeaderComponentStyle={styles.centerHeader}
+          contentContainerStyle={{ paddingBottom: 50 }}
+        />
+      </ThemedView>
+    </KeyboardAvoidingView>
+  );
+});
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    alignItems: "center",
+    marginBottom: 20,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  centerHeader: {
+    alignItems: "center",
   },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    marginVertical: 8,
+    borderRadius: 6,
+    width: "100%",
+    maxWidth: 400,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    maxWidth: 400,
+    marginVertical: 8,
+  },
+  item: {
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    paddingVertical: 10,
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+  },
+  buttons: { flexDirection: "row", gap: 8, marginTop: 8 },
 });
+
+export default ProviderScreen;
