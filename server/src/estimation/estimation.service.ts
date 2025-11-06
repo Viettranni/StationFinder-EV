@@ -7,13 +7,14 @@ export class EstimationService {
   constructor(private readonly httpService: HttpService) {}
 
    // This endpoint will provide the estimated on arrival battery, routing points and kilometer from departure to destination
-  async getEvRoute(origin: string, destination: string, currentBattery: number, batterySize: number, efficiency: number, maxChargingSpeedInKw: number, plugType: string) {
+  async getEvRoute(origin: string, destination: string, currentBattery: number, batterySize: number, efficiency: number, maxChargingSpeedInKw: number) {
     const apiKey = process.env.TOMTOM_API_KEY;
     const url = `https://api.tomtom.com/routing/1/calculateLongDistanceEVRoute/${origin}:${destination}/json`;
 
     // Increasing the efficiency as the speed rises
     const constantCalculationSlow = 0.85 * efficiency
     const constantCalculationFast = 1.37 * efficiency
+
 
     const params = {
       key: apiKey,
@@ -46,7 +47,7 @@ export class EstimationService {
             maxPowerInkW: 11
           },
           {
-            currentType: `${plugType}`,
+            currentType: 'DC',
             plugTypes: [
               'IEC_62196_Type_2_Outlet',
               'IEC_62196_Type_2_Connector_Cable_Attached',
@@ -58,7 +59,7 @@ export class EstimationService {
             maxPowerInkW: `${maxChargingSpeedInKw}`
           },
           {
-            currentType: `${plugType}`,
+            currentType: 'DC',
             plugTypes: [
               'IEC_62196_Type_2_Outlet',
               'IEC_62196_Type_2_Connector_Cable_Attached',

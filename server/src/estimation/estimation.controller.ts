@@ -13,7 +13,6 @@ export class EstimationController {
     @Query('currentBattery', ParseFloatPipe) currentBattery: number,
     @Query('maxChargingSpeedInKw', ParseFloatPipe) maxChargingSpeedInKw: number,
     @Query('efficiency', ParseFloatPipe) efficiency: number,
-    @Query('plugType') plugType: string,
   ) {
     return this.estimationService.getEvRoute(
       origin,
@@ -22,7 +21,6 @@ export class EstimationController {
       batterySize,
       efficiency,
       maxChargingSpeedInKw,
-      plugType,
     );
   }
 }
