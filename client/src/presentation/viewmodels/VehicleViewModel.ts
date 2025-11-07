@@ -1,25 +1,90 @@
-// src/viewmodels/VehicleViewModel.ts
 import { makeAutoObservable, runInAction } from "mobx";
 import { IVehicleRepository } from "../../data/repositories/IVehiclerepository";
+import { RemoteVehicleRepository } from "../../data/repositories/RemoteVehicleRepository";
+import { ResponseVehicle } from "../../data/local/dao/ResponseVehicle";
 import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export interface VehicleUIState {
-  vehicles: Vehicle[];
+  availableVehicles: ResponseVehicle[];
+  selectedVehicle: ResponseVehicle | null;
+  savedVehicle: Vehicle | null; // only ONE saved locally
   loading: boolean;
   error: string | null;
 }
 
 export class VehicleViewModel {
   state: VehicleUIState = {
-    vehicles: [],
+    availableVehicles: [],
+    selectedVehicle: null,
+    savedVehicle: null,
     loading: false,
     error: null,
   };
 
-  constructor(private repo: IVehicleRepository) {
+  constructor(
+    private readonly localRepo: IVehicleRepository,
+    private readonly remoteRepo: RemoteVehicleRepository
+  ) {
     makeAutoObservable(this);
   }
 
+  // ========================
+  // Remote data (API)
+  // ========================
+  async fetchAvailableVehicles() {
+    this.state.loading = true;
+    this.state.error = null;
+    try {
+      const data = await this.remoteRepo.getAllVehicles();
+      runInAction(() => {
+        this.state.availableVehicles = data;
+      });
+    } catch (err: any) {
+      runInAction(() => {
+        this.state.error = err.message || "Failed to fetch available vehicles";
+      });
+    } finally {
+      runInAction(() => {
+        this.state.loading = false;
+      });
+    }
+  }
+
+  // ========================
+  // Local data (DB)
+  // ========================
+  async fetchSavedVehicle() {
+    this.state.loading = true;
+    this.state.error = null;
+    try {
+      const vehicles = await this.localRepo.getAllVehicles();
+      runInAction(() => {
+        // Only one can exist, take the first
+        this.state.savedVehicle = vehicles[0] ?? null;
+      });
+    } catch (err: any) {
+      runInAction(() => {
+        this.state.error = err.message || "Failed to fetch saved vehicle";
+      });
+    } finally {
+      runInAction(() => {
+        this.state.loading = false;
+      });
+    }
+  }
+
+  // ========================
+  // User selection
+  // ========================
+  selectVehicle(vehicle: ResponseVehicle) {
+    runInAction(() => {
+      this.state.selectedVehicle = vehicle;
+    });
+  }
+
+  // ========================
+  // Validation
+  // ========================
   private validateVehicle(vehicle: NewVehicle) {
     if (!vehicle.brand || !vehicle.model) {
       throw new Error("Brand and model are required");
@@ -53,64 +118,73 @@ export class VehicleViewModel {
     }
   }
 
-  async fetchVehicles() {
-    this.state.loading = true;
-    this.state.error = null;
-    try {
-      const data = await this.repo.getAllVehicles();
-      runInAction(() => {
-        this.state.vehicles = data;
-      });
-    } catch (err: any) {
-      runInAction(() => {
-        this.state.error = err.message || "Failed to fetch vehicles";
-      });
-    } finally {
-      runInAction(() => {
-        this.state.loading = false;
-      });
+  // ========================
+  // Save selected -> local DB
+  // ========================
+  async saveSelectedVehicle(userValues: Partial<NewVehicle>) {
+    if (!this.state.selectedVehicle) {
+      throw new Error("No vehicle selected");
     }
-  }
 
-  async addVehicle(vehicle: NewVehicle) {
     try {
-      this.validateVehicle(vehicle);
-      const id = await this.repo.addVehicle(vehicle);
-      await this.fetchVehicles();
+      const selected = this.state.selectedVehicle;
+
+      // Merge remote data + user input
+      const newVehicle: NewVehicle = {
+        brand: selected.brand,
+        model: selected.make,
+        year: userValues.year ?? new Date().getFullYear(),
+        batterySizeKwh: userValues.batterySizeKwh ?? selected.batterySizeKwh[0],
+        currentBatteryState: userValues.currentBatteryState ?? 100,
+        averageConsumption:
+          userValues.averageConsumption ?? selected.efficiency,
+        latitude: userValues.latitude ?? 0,
+        longitude: userValues.longitude ?? 0,
+        favourites: userValues.favourites ?? "false",
+        createdAt: new Date().toISOString(),
+      };
+
+      this.validateVehicle(newVehicle);
+
+      // Clear any existing local vehicle
+      const existing = await this.localRepo.getAllVehicles();
+      if (existing.length > 0) {
+        await this.localRepo.deleteVehicle(existing[0].id);
+      }
+
+      const id = await this.localRepo.addVehicle(newVehicle);
+      await this.fetchSavedVehicle();
+
       return id;
     } catch (err: any) {
       runInAction(() => {
-        this.state.error = err.message || "Failed to add vehicle";
+        this.state.error = err.message || "Failed to save vehicle";
       });
       throw err;
     }
   }
 
-  async updateVehicle(id: number, vehicle: NewVehicle) {
+  // ========================
+  // Delete saved vehicle
+  // ========================
+  async deleteSavedVehicle() {
+    if (!this.state.savedVehicle) return;
     try {
-      this.validateVehicle(vehicle);
-      await this.repo.updateVehicle(id, vehicle);
-      await this.fetchVehicles();
+      await this.localRepo.deleteVehicle(this.state.savedVehicle.id);
+      runInAction(() => {
+        this.state.savedVehicle = null;
+      });
     } catch (err: any) {
       runInAction(() => {
-        this.state.error = err.message || "Failed to update vehicle";
+        this.state.error = err.message || "Failed to delete saved vehicle";
       });
       throw err;
     }
   }
 
-  async deleteVehicle(id: number) {
-    try {
-      await this.repo.deleteVehicle(id);
-      await this.fetchVehicles();
-    } catch (err: any) {
-      runInAction(() => {
-        this.state.error = err.message || "Failed to delete vehicle";
-      });
-      throw err;
-    }
-  }
-
+  // ========================
+  // UI State getter
+  // ========================
   get uiState() {
     return { ...this.state };
   }

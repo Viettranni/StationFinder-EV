@@ -1,4 +1,3 @@
-// src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
@@ -11,6 +10,8 @@ import {
   ActivityIndicator,
   Switch,
   KeyboardAvoidingView,
+  useColorScheme,
+  ScrollView,
 } from "react-native";
 import { observer } from "mobx-react-lite";
 import { Image } from "expo-image";
@@ -20,25 +21,23 @@ import { ThemedView } from "@/components/themed-view";
 import { HelloWave } from "@/components/hello-wave";
 
 import { Container } from "../../src/di/container";
-import {
-  createVehicle,
-  NewVehicle,
-  Vehicle,
-} from "../../src/domain/entities/Vehicle";
+import { NewVehicle } from "../../src/domain/entities/Vehicle";
+import { ResponseVehicle } from "../../src/data/local/dao/ResponseVehicle";
 
 const HomeScreen = observer(() => {
-  const [containerReady, setContainerReady] = useState(false);
-  const [vm, setVm] = useState<any>(null); // VehicleViewModel
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [containerReady, setContainerReady] = useState(false);
+  const [vm, setVm] = useState<any>(null);
 
   // Form state
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState("");
-  const [batterySizeKwh, setBatterySizeKwh] = useState("50");
-  const [currentBatteryState, setCurrentBatteryState] = useState("100");
-  const [averageConsumption, setAverageConsumption] = useState("10");
+  const [batterySizeKwh, setBatterySizeKwh] = useState("");
+  const [currentBatteryState, setCurrentBatteryState] = useState("0");
+  const [averageConsumption, setAverageConsumption] = useState("");
   const [latitude, setLatitude] = useState("0");
   const [longitude, setLongitude] = useState("0");
   const [favourites, setFavourites] = useState(false);
@@ -48,8 +47,10 @@ const HomeScreen = observer(() => {
       (async () => {
         try {
           const container = await Container.getInstance();
-          setVm(container.vehicleViewModel);
-          await container.vehicleViewModel.fetchVehicles();
+          const vehicleVM = container.vehicleViewModel;
+          setVm(vehicleVM);
+          await vehicleVM.fetchAvailableVehicles();
+          await vehicleVM.fetchSavedVehicle();
           setContainerReady(true);
         } catch (err) {
           console.error("Container init failed:", err);
@@ -58,113 +59,79 @@ const HomeScreen = observer(() => {
     }
   }, []);
 
-  if (!containerReady || !vm) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ThemedText type="title">⏳ Initializing repository...</ThemedText>
-      </ThemedView>
-    );
-  }
+  const populateFormFromVehicle = (vehicle: ResponseVehicle) => {
+    setBrand(vehicle.brand || "");
+    setModel(vehicle.make || "");
+    setYear(new Date().getFullYear().toString());
+    setBatterySizeKwh(vehicle.batterySizeKwh?.[0]?.toString() || "");
+    setAverageConsumption(vehicle.efficiency?.toString() || "");
+    setCurrentBatteryState("100");
+    setLatitude("0");
+    setLongitude("0");
+    setFavourites(false);
+  };
 
-  const saveVehicle = async () => {
-    if (!brand || !model || !year) {
-      Alert.alert("Validation", "Brand, model, and year are required.");
-      return;
-    }
+  const handleSelectVehicle = (vehicle: ResponseVehicle) => {
+    vm.selectVehicle(vehicle);
+    populateFormFromVehicle(vehicle);
+    Alert.alert("Vehicle Selected", `${vehicle.brand} ${vehicle.make}`);
+  };
 
-    const vehicleData: NewVehicle = createVehicle({
-      brand,
-      model,
-      year: Number(year),
-      batterySizeKwh: Number(batterySizeKwh),
-      currentBatteryState: Number(currentBatteryState),
-      averageConsumption: Number(averageConsumption),
-      latitude: Number(latitude),
-      longitude: Number(longitude),
-      favourites: favourites ? "true" : "false",
-      createdAt: new Date().toISOString(),
-    });
-
+  const handleSaveOrUpdate = async () => {
     try {
-      if (editingId !== null) {
-        await vm.updateVehicle(editingId, vehicleData);
-        setEditingId(null);
-      } else {
-        await vm.addVehicle(vehicleData);
-      }
+      const inputValues: Partial<NewVehicle> = {
+        brand,
+        model,
+        year: Number(year),
+        batterySizeKwh: Number(batterySizeKwh),
+        currentBatteryState: Number(currentBatteryState),
+        averageConsumption: Number(averageConsumption),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        favourites: favourites ? "true" : "false",
+      };
 
-      // Reset form
-      setBrand("");
-      setModel("");
-      setYear("");
-      setBatterySizeKwh("50");
-      setCurrentBatteryState("100");
-      setAverageConsumption("10");
-      setLatitude("0");
-      setLongitude("0");
-      setFavourites(false);
+      await vm.saveSelectedVehicle(inputValues);
+      Alert.alert("✅ Success", "Vehicle saved locally!");
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Operation failed");
+      Alert.alert("Error", err.message || "Failed to save vehicle");
     }
   };
 
-  const startEdit = (vehicle: Vehicle) => {
-    setEditingId(vehicle.id);
-    setBrand(vehicle.brand);
-    setModel(vehicle.model);
-    setYear(vehicle.year.toString());
-    setBatterySizeKwh(vehicle.batterySizeKwh.toString());
-    setCurrentBatteryState(vehicle.currentBatteryState.toString());
-    setAverageConsumption(vehicle.averageConsumption.toString());
-    setLatitude(vehicle.latitude.toString());
-    setLongitude(vehicle.longitude.toString());
-    setFavourites(vehicle.favourites === "true");
-  };
-
-  const deleteVehicle = async (id: number) => {
-    Alert.alert("Confirm Delete", "Are you sure?", [
+  const deleteSavedVehicle = async () => {
+    Alert.alert("Confirm", "Delete saved vehicle?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => await vm.deleteVehicle(id),
+        onPress: async () => await vm.deleteSavedVehicle(),
       },
     ]);
   };
 
-  const renderVehicleItem = ({ item }: { item: Vehicle }) => (
-    <View style={styles.vehicleItem}>
-      <ThemedText>
-        {item.brand} {item.model} ({item.year})
-      </ThemedText>
-      <ThemedText>
-        Battery: {item.currentBatteryState}/{item.batterySizeKwh} kWh
-      </ThemedText>
-      <ThemedText>
-        Avg Consumption: {item.averageConsumption} kWh/100km
-      </ThemedText>
-      <ThemedText>
-        Location: {item.latitude}, {item.longitude}
-      </ThemedText>
-      <ThemedText>Favourites: {item.favourites}</ThemedText>
-      <View style={styles.itemButtons}>
-        <Button title="Edit" onPress={() => startEdit(item)} />
-        <Button
-          title="Delete"
-          color="red"
-          onPress={() => deleteVehicle(item.id)}
-        />
-      </View>
-    </View>
-  );
+  if (!containerReady || !vm) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator size="large" />
+        <ThemedText type="title">Initializing...</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  const { availableVehicles, selectedVehicle, savedVehicle, loading, error } =
+    vm.uiState;
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ThemedView style={{ flex: 1 }}>
-        {/* Form */}
+      <ThemedView
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? "#0d0d0d" : "#fafafa" },
+        ]}
+      >
         <FlatList
           ListHeaderComponent={
             <View style={styles.headerContainer}>
@@ -173,91 +140,172 @@ const HomeScreen = observer(() => {
                 style={styles.reactLogo}
               />
               <ThemedText type="title">
-                {editingId !== null ? "Edit Vehicle" : "Add Vehicle"}
+                ⚡ Select, Edit & Save Your Vehicle
               </ThemedText>
               <HelloWave />
 
-              <View style={styles.formContainer}>
-                <TextInput
-                  placeholder="Brand"
-                  value={brand}
-                  onChangeText={setBrand}
-                  style={styles.input}
+              {loading && (
+                <ActivityIndicator
+                  style={{ marginVertical: 8 }}
+                  color={isDark ? "#80cbc4" : "#00796b"}
                 />
-                <TextInput
-                  placeholder="Model"
-                  value={model}
-                  onChangeText={setModel}
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Year"
-                  value={year}
-                  onChangeText={setYear}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Battery Size kWh"
-                  value={batterySizeKwh}
-                  onChangeText={setBatterySizeKwh}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Current Battery State"
-                  value={currentBatteryState}
-                  onChangeText={setCurrentBatteryState}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Average Consumption"
-                  value={averageConsumption}
-                  onChangeText={setAverageConsumption}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Latitude"
-                  value={latitude}
-                  onChangeText={setLatitude}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
-                <TextInput
-                  placeholder="Longitude"
-                  value={longitude}
-                  onChangeText={setLongitude}
-                  keyboardType="numeric"
-                  style={styles.input}
-                />
+              )}
 
-                <View style={styles.toggleContainer}>
-                  <ThemedText>Favourites</ThemedText>
-                  <Switch value={favourites} onValueChange={setFavourites} />
-                </View>
-
-                <Button
-                  title={editingId !== null ? "Update Vehicle" : "Add Vehicle"}
-                  onPress={saveVehicle}
-                />
-              </View>
-
-              {vm.state.error && (
-                <ThemedText style={{ marginTop: 10 }}>
-                  {vm.state.error}
+              {error && (
+                <ThemedText style={{ color: "tomato", marginVertical: 8 }}>
+                  {error}
                 </ThemedText>
               )}
-              {vm.state.loading && (
-                <ActivityIndicator size="small" style={{ marginTop: 10 }} />
+
+              {/* --- Editable Form --- */}
+              {selectedVehicle && (
+                <ScrollView
+                  style={styles.formContainer}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                >
+                  <ThemedText type="subtitle" style={{ marginBottom: 6 }}>
+                    Editing: {selectedVehicle.brand} {selectedVehicle.make}
+                  </ThemedText>
+
+                  {[
+                    { label: "Brand", value: brand, setter: setBrand },
+                    { label: "Model", value: model, setter: setModel },
+                    { label: "Year", value: year, setter: setYear },
+                    {
+                      label: "Battery Size (kWh)",
+                      value: batterySizeKwh,
+                      setter: setBatterySizeKwh,
+                    },
+                    {
+                      label: "Current Battery State",
+                      value: currentBatteryState,
+                      setter: setCurrentBatteryState,
+                    },
+                    {
+                      label: "Average Consumption (kWh/100km)",
+                      value: averageConsumption,
+                      setter: setAverageConsumption,
+                    },
+                    {
+                      label: "Latitude",
+                      value: latitude,
+                      setter: setLatitude,
+                    },
+                    {
+                      label: "Longitude",
+                      value: longitude,
+                      setter: setLongitude,
+                    },
+                  ].map((input, index) => (
+                    <View key={index} style={{ width: "100%" }}>
+                      <ThemedText
+                        style={{
+                          color: isDark ? "#ccc" : "#333",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {input.label}
+                      </ThemedText>
+                      <TextInput
+                        placeholder={input.label}
+                        value={input.value}
+                        onChangeText={input.setter}
+                        keyboardType={
+                          ["Brand", "Model"].includes(input.label)
+                            ? "default"
+                            : "numeric"
+                        }
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: isDark ? "#1c1c1e" : "#fff",
+                            color: isDark ? "#e0e0e0" : "#000",
+                            borderColor: isDark ? "#333" : "#ccc",
+                          },
+                        ]}
+                        placeholderTextColor={isDark ? "#888" : "#999"}
+                      />
+                    </View>
+                  ))}
+
+                  <View style={styles.toggleContainer}>
+                    <ThemedText>Favourites</ThemedText>
+                    <Switch
+                      value={favourites}
+                      onValueChange={setFavourites}
+                      thumbColor={favourites ? "#00bfa5" : "#ccc"}
+                      trackColor={{
+                        false: isDark ? "#444" : "#ccc",
+                        true: isDark ? "#00796b" : "#80cbc4",
+                      }}
+                    />
+                  </View>
+
+                  <Button
+                    title={
+                      savedVehicle
+                        ? "🔄 Update Saved Vehicle"
+                        : "💾 Save Vehicle Locally"
+                    }
+                    color={isDark ? "#00bfa5" : "#00796b"}
+                    onPress={handleSaveOrUpdate}
+                  />
+                </ScrollView>
+              )}
+              {savedVehicle && (
+                <View
+                  style={[
+                    styles.savedVehicleCard,
+                    { backgroundColor: isDark ? "#1c1c1c" : "#f1f8e9" },
+                  ]}
+                >
+                  <ThemedText type="subtitle">
+                    Saved Vehicle: {savedVehicle.brand} {savedVehicle.model}
+                  </ThemedText>
+                  <Button
+                    title="Delete Saved Vehicle"
+                    color={isDark ? "#ff6b6b" : "red"}
+                    onPress={deleteSavedVehicle}
+                  />
+                </View>
               )}
             </View>
           }
-          data={vm.state.vehicles}
-          keyExtractor={(item: Vehicle) => item.id.toString()}
-          renderItem={renderVehicleItem}
-          contentContainerStyle={{ paddingBottom: 50 }}
+          data={availableVehicles}
+          keyExtractor={(item: ResponseVehicle) => `${item.brand}-${item.make}`}
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.vehicleItem,
+                {
+                  backgroundColor:
+                    selectedVehicle &&
+                    selectedVehicle.make === item.make &&
+                    selectedVehicle.brand === item.brand
+                      ? isDark
+                        ? "#003d33"
+                        : "#e0f7fa"
+                      : isDark
+                      ? "#121212"
+                      : "#fff",
+                },
+              ]}
+            >
+              <ThemedText>
+                {item.brand} {item.make}
+              </ThemedText>
+              <ThemedText>
+                Battery sizes: {item.batterySizeKwh.join(", ")} kWh
+              </ThemedText>
+              <ThemedText>Efficiency: {item.efficiency} kWh/100km</ThemedText>
+              <Button
+                title="Select"
+                color={isDark ? "#00bfa5" : "#00796b"}
+                onPress={() => handleSelectVehicle(item)}
+              />
+            </View>
+          )}
+          contentContainerStyle={{ paddingBottom: 80 }}
         />
       </ThemedView>
     </KeyboardAvoidingView>
@@ -265,31 +313,37 @@ const HomeScreen = observer(() => {
 });
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   headerContainer: { padding: 16, alignItems: "center" },
-  formContainer: { width: "100%", marginTop: 16, gap: 8 },
+  formContainer: { width: "100%", marginTop: 16 },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 8,
+    padding: 10,
     borderRadius: 6,
+    marginBottom: 12,
     width: "100%",
   },
   toggleContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginVertical: 8,
+    marginVertical: 12,
     width: "100%",
   },
   vehicleItem: {
     flexDirection: "column",
     justifyContent: "flex-start",
     padding: 12,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: "#333",
     alignItems: "flex-start",
   },
-  itemButtons: { flexDirection: "row", gap: 8, marginTop: 8 },
+  savedVehicleCard: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    width: "100%",
+  },
   reactLogo: { height: 120, width: 120, marginBottom: 8 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

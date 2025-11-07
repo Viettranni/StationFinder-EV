@@ -1,4 +1,3 @@
-// src/di/Container.ts
 import { initDB } from "../data/local/database";
 
 // --- DAOs ---
@@ -6,10 +5,14 @@ import { VehicleDao } from "../data/local/dao/VehicleDao";
 import { ProviderDao } from "../data/local/dao/ProviderDao";
 import { ChargeTypeDao } from "../data/local/dao/ChargeTypeDao";
 
+// --- APIs ---
+import { VehicleApi } from "../data/api/VehicleApi";
+
 // --- Repositories ---
 import { LocalVehicleRepository } from "../data/repositories/LocalVehicleRepository";
 import { LocalProviderRepository } from "../data/repositories/LocalProviderRepository";
 import { LocalChargeTypeRepository } from "../data/repositories/LocalChargeTypeRepository";
+import { RemoteVehicleRepository } from "../data/repositories/RemoteVehicleRepository";
 
 // --- ViewModels ---
 import { VehicleViewModel } from "../presentation/viewmodels/VehicleViewModel";
@@ -19,7 +22,7 @@ import { ChargeTypeViewModel } from "../presentation/viewmodels/ChargeTypeViewMo
 export class Container {
   private static instance: Container | null = null;
 
-  // Private fields to ensure proper initialization
+  // Private fields for ViewModels
   private _vehicleViewModel: VehicleViewModel | null = null;
   private _providerViewModel: ProviderViewModel | null = null;
   private _chargeTypeViewModel: ChargeTypeViewModel | null = null;
@@ -45,12 +48,22 @@ export class Container {
     const chargeTypeDao = new ChargeTypeDao();
 
     // 3️⃣ Create repositories
-    const vehicleRepo = new LocalVehicleRepository(vehicleDao);
+    // Local repositories
+    const localVehicleRepo = new LocalVehicleRepository(vehicleDao);
     const providerRepo = new LocalProviderRepository(providerDao);
     const chargeTypeRepo = new LocalChargeTypeRepository(chargeTypeDao);
 
-    // 4️⃣ Create viewmodels
-    this._vehicleViewModel = new VehicleViewModel(vehicleRepo);
+    // Remote repositories
+    const apiBaseUrl = null;
+    const vehicleApi = new VehicleApi(apiBaseUrl, true);
+    const remoteVehicleRepo = new RemoteVehicleRepository(vehicleApi);
+
+    // 4️⃣ Create ViewModels
+    // VehicleViewModel needs both local & remote repos
+    this._vehicleViewModel = new VehicleViewModel(
+      localVehicleRepo,
+      remoteVehicleRepo
+    );
     this._providerViewModel = new ProviderViewModel(providerRepo);
     this._chargeTypeViewModel = new ChargeTypeViewModel(chargeTypeRepo);
   }
@@ -84,5 +97,5 @@ export class Container {
   }
 }
 
-// Exporting a single shared container promise
+// Export a single shared container promise
 export const containerPromise: Promise<Container> = Container.getInstance();
