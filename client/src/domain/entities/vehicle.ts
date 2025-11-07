@@ -25,7 +25,7 @@ export function createVehicle(partial: Partial<NewVehicle>): NewVehicle {
     model: partial.model,
     year: partial.year ?? new Date().getFullYear(),
     batterySizeKwh: partial.batterySizeKwh ?? 0,
-    currentBatteryState: partial.currentBatteryState ?? 100,
+    currentBatteryState: partial.currentBatteryState ?? 1,
     averageConsumption: partial.averageConsumption ?? 0,
     latitude: partial.latitude ?? 0,
     longitude: partial.longitude ?? 0,

@@ -1,351 +1,473 @@
 import React, { useEffect, useState } from "react";
 import {
-  StyleSheet,
-  TextInput,
-  Button,
   View,
-  FlatList,
-  Alert,
-  Platform,
-  ActivityIndicator,
-  Switch,
-  KeyboardAvoidingView,
-  useColorScheme,
+  Text,
+  TouchableOpacity,
   ScrollView,
+  TextInput,
+  useColorScheme,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
-import { observer } from "mobx-react-lite";
-import { Image } from "expo-image";
-
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { HelloWave } from "@/components/hello-wave";
-
-import { Container } from "../../src/di/container";
-import { NewVehicle } from "../../src/domain/entities/Vehicle";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChevronLeft, Search, ChevronRight, Car } from "lucide-react-native";
+import { containerPromise } from "../../src/di/container";
+import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { ResponseVehicle } from "../../src/data/local/dao/ResponseVehicle";
+import { Vehicle } from "../../src/domain/entities/Vehicle";
 
-const HomeScreen = observer(() => {
+const ChooseCarScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const insets = useSafeAreaInsets();
 
-  const [containerReady, setContainerReady] = useState(false);
-  const [vm, setVm] = useState<any>(null);
+  const [vm, setVm] = useState<VehicleViewModel | null>(null);
+  const [vehicles, setVehicles] = useState<ResponseVehicle[]>([]);
+  const [savedVehicle, setSavedVehicle] = useState<Vehicle | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [loading, setLoading] = useState(true);
 
-  // Form state
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [batterySizeKwh, setBatterySizeKwh] = useState("");
-  const [currentBatteryState, setCurrentBatteryState] = useState("0");
-  const [averageConsumption, setAverageConsumption] = useState("");
-  const [latitude, setLatitude] = useState("0");
-  const [longitude, setLongitude] = useState("0");
-  const [favourites, setFavourites] = useState(false);
+  const [selectedCar, setSelectedCar] = useState<ResponseVehicle | null>(null);
+  const [formValues, setFormValues] = useState({
+    brand: "",
+    model: "",
+    year: "",
+    batterySizeKwh: "",
+    currentBatteryState: "",
+    averageConsumption: "",
+    latitude: "",
+    longitude: "",
+    favourites: "false",
+  });
 
+  const categories = [
+    { id: "all", name: "All" },
+    { id: "tesla", name: "Tesla" },
+    { id: "audi", name: "Audi" },
+    { id: "hyundai", name: "Hyundai" },
+    { id: "polestar", name: "Polestar" },
+  ];
+
+  // ======== INIT ========
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      (async () => {
-        try {
-          const container = await Container.getInstance();
-          const vehicleVM = container.vehicleViewModel;
-          setVm(vehicleVM);
-          await vehicleVM.fetchAvailableVehicles();
-          await vehicleVM.fetchSavedVehicle();
-          setContainerReady(true);
-        } catch (err) {
-          console.error("Container init failed:", err);
-        }
-      })();
-    }
+    (async () => {
+      const container = await containerPromise;
+      const vehicleVM = container.vehicleViewModel;
+      setVm(vehicleVM);
+
+      await vehicleVM.fetchAvailableVehicles();
+      await vehicleVM.fetchSavedVehicle();
+
+      const state = vehicleVM.uiState;
+      setVehicles(state.filteredVehicles);
+      setSavedVehicle(state.savedVehicle);
+      setLoading(false);
+    })();
   }, []);
 
-  const populateFormFromVehicle = (vehicle: ResponseVehicle) => {
-    setBrand(vehicle.brand || "");
-    setModel(vehicle.make || "");
-    setYear(new Date().getFullYear().toString());
-    setBatterySizeKwh(vehicle.batterySizeKwh?.[0]?.toString() || "");
-    setAverageConsumption(vehicle.efficiency?.toString() || "");
-    setCurrentBatteryState("100");
-    setLatitude("0");
-    setLongitude("0");
-    setFavourites(false);
+  // ======== HANDLERS ========
+
+  const handleSearchChange = (text: string) => {
+    if (!vm) return;
+    vm.setSearchQuery(text);
+    setSearchQuery(text);
+    setVehicles(vm.uiState.filteredVehicles);
   };
 
-  const handleSelectVehicle = (vehicle: ResponseVehicle) => {
-    vm.selectVehicle(vehicle);
-    populateFormFromVehicle(vehicle);
-    Alert.alert("Vehicle Selected", `${vehicle.brand} ${vehicle.make}`);
+  const handleCategorySelect = (categoryId: string) => {
+    if (!vm) return;
+    vm.setSelectedCategory(categoryId);
+    setSelectedCategory(categoryId);
+    setVehicles(vm.uiState.filteredVehicles);
   };
 
-  const handleSaveOrUpdate = async () => {
+  const handleCarPress = (car: ResponseVehicle) => {
+    if (!vm) return;
+    vm.selectVehicle(car);
+    setSelectedCar(car);
+    setFormValues({
+      brand: car.brand ?? "",
+      model: car.make ?? "",
+      year: new Date().getFullYear().toString(),
+      batterySizeKwh: car.batterySizeKwh?.[0]?.toString() ?? "",
+      currentBatteryState: "0",
+      averageConsumption: car.efficiency?.toString() ?? "",
+      latitude: "0",
+      longitude: "0",
+      favourites: "false",
+    });
+  };
+
+  const handleSaveVehicle = async () => {
+    if (!vm || !selectedCar) return;
     try {
-      const inputValues: Partial<NewVehicle> = {
-        brand,
-        model,
-        year: Number(year),
-        batterySizeKwh: Number(batterySizeKwh),
-        currentBatteryState: Number(currentBatteryState),
-        averageConsumption: Number(averageConsumption),
-        latitude: Number(latitude),
-        longitude: Number(longitude),
-        favourites: favourites ? "true" : "false",
-      };
+      await vm.saveSelectedVehicle({
+        brand: formValues.brand,
+        model: formValues.model,
+        year: parseInt(formValues.year),
+        batterySizeKwh: parseFloat(formValues.batterySizeKwh),
+        currentBatteryState: parseFloat(formValues.currentBatteryState),
+        averageConsumption: parseFloat(formValues.averageConsumption),
+        latitude: parseFloat(formValues.latitude),
+        longitude: parseFloat(formValues.longitude),
+        favourites: formValues.favourites,
+        createdAt: new Date().toISOString(),
+      });
 
-      await vm.saveSelectedVehicle(inputValues);
-      Alert.alert("✅ Success", "Vehicle saved locally!");
+      setSavedVehicle(vm.uiState.savedVehicle);
+      setSelectedCar(null);
+      Alert.alert("Success", "Vehicle saved successfully!");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to save vehicle");
     }
   };
 
-  const deleteSavedVehicle = async () => {
-    Alert.alert("Confirm", "Delete saved vehicle?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => await vm.deleteSavedVehicle(),
-      },
-    ]);
+  const handleDeleteSavedVehicle = async () => {
+    if (!vm) return;
+    await vm.deleteSavedVehicle();
+    setSavedVehicle(null);
   };
 
-  if (!containerReady || !vm) {
+  const handleBackPress = () => {
+    if (selectedCar) setSelectedCar(null);
+    else console.log("Back pressed");
+  };
+
+  // ======== RENDER ========
+  if (loading) {
     return (
-      <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <ThemedText type="title">Initializing...</ThemedText>
-      </ThemedView>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: isDark ? "#121212" : "#fff",
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
+      </View>
     );
   }
 
-  const { availableVehicles, selectedVehicle, savedVehicle, loading, error } =
-    vm.uiState;
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? "#121212" : "#fff",
+          paddingTop: insets.top,
+        },
+      ]}
     >
-      <ThemedView
-        style={[
-          styles.container,
-          { backgroundColor: isDark ? "#0d0d0d" : "#fafafa" },
-        ]}
+      {/* Header */}
+      <View
+        style={[styles.header, { borderBottomColor: isDark ? "#333" : "#eee" }]}
       >
-        <FlatList
-          ListHeaderComponent={
-            <View style={styles.headerContainer}>
-              <Image
-                source={require("@/assets/images/partial-react-logo.png")}
-                style={styles.reactLogo}
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+          <ChevronLeft size={24} color={isDark ? "#fff" : "#000"} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}>
+          {selectedCar ? "Edit Vehicle" : "Choose a Car"}
+        </Text>
+      </View>
+
+      {/* FORM */}
+      {selectedCar ? (
+        <ScrollView style={{ padding: 16 }}>
+          {Object.entries(formValues).map(([key, value]) => (
+            <View key={key} style={{ marginBottom: 12 }}>
+              <Text
+                style={{ color: isDark ? "#fff" : "#000", marginBottom: 6 }}
+              >
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? "#1e1e1e" : "#f1f1f1",
+                    color: isDark ? "#fff" : "#000",
+                  },
+                ]}
+                value={value}
+                onChangeText={(text) =>
+                  setFormValues((p) => ({ ...p, [key]: text }))
+                }
+                keyboardType={
+                  [
+                    "year",
+                    "batterySizeKwh",
+                    "currentBatteryState",
+                    "averageConsumption",
+                    "latitude",
+                    "longitude",
+                  ].includes(key)
+                    ? "numeric"
+                    : "default"
+                }
               />
-              <ThemedText type="title">
-                ⚡ Select, Edit & Save Your Vehicle
-              </ThemedText>
-              <HelloWave />
-
-              {loading && (
-                <ActivityIndicator
-                  style={{ marginVertical: 8 }}
-                  color={isDark ? "#80cbc4" : "#00796b"}
-                />
-              )}
-
-              {error && (
-                <ThemedText style={{ color: "tomato", marginVertical: 8 }}>
-                  {error}
-                </ThemedText>
-              )}
-
-              {/* --- Editable Form --- */}
-              {selectedVehicle && (
-                <ScrollView
-                  style={styles.formContainer}
-                  contentContainerStyle={{ paddingBottom: 20 }}
-                >
-                  <ThemedText type="subtitle" style={{ marginBottom: 6 }}>
-                    Editing: {selectedVehicle.brand} {selectedVehicle.make}
-                  </ThemedText>
-
-                  {[
-                    { label: "Brand", value: brand, setter: setBrand },
-                    { label: "Model", value: model, setter: setModel },
-                    { label: "Year", value: year, setter: setYear },
-                    {
-                      label: "Battery Size (kWh)",
-                      value: batterySizeKwh,
-                      setter: setBatterySizeKwh,
-                    },
-                    {
-                      label: "Current Battery State",
-                      value: currentBatteryState,
-                      setter: setCurrentBatteryState,
-                    },
-                    {
-                      label: "Average Consumption (kWh/100km)",
-                      value: averageConsumption,
-                      setter: setAverageConsumption,
-                    },
-                    {
-                      label: "Latitude",
-                      value: latitude,
-                      setter: setLatitude,
-                    },
-                    {
-                      label: "Longitude",
-                      value: longitude,
-                      setter: setLongitude,
-                    },
-                  ].map((input, index) => (
-                    <View key={index} style={{ width: "100%" }}>
-                      <ThemedText
-                        style={{
-                          color: isDark ? "#ccc" : "#333",
-                          marginBottom: 4,
-                        }}
-                      >
-                        {input.label}
-                      </ThemedText>
-                      <TextInput
-                        placeholder={input.label}
-                        value={input.value}
-                        onChangeText={input.setter}
-                        keyboardType={
-                          ["Brand", "Model"].includes(input.label)
-                            ? "default"
-                            : "numeric"
-                        }
-                        style={[
-                          styles.input,
-                          {
-                            backgroundColor: isDark ? "#1c1c1e" : "#fff",
-                            color: isDark ? "#e0e0e0" : "#000",
-                            borderColor: isDark ? "#333" : "#ccc",
-                          },
-                        ]}
-                        placeholderTextColor={isDark ? "#888" : "#999"}
-                      />
-                    </View>
-                  ))}
-
-                  <View style={styles.toggleContainer}>
-                    <ThemedText>Favourites</ThemedText>
-                    <Switch
-                      value={favourites}
-                      onValueChange={setFavourites}
-                      thumbColor={favourites ? "#00bfa5" : "#ccc"}
-                      trackColor={{
-                        false: isDark ? "#444" : "#ccc",
-                        true: isDark ? "#00796b" : "#80cbc4",
-                      }}
-                    />
-                  </View>
-
-                  <Button
-                    title={
-                      savedVehicle
-                        ? "🔄 Update Saved Vehicle"
-                        : "💾 Save Vehicle Locally"
-                    }
-                    color={isDark ? "#00bfa5" : "#00796b"}
-                    onPress={handleSaveOrUpdate}
-                  />
-                </ScrollView>
-              )}
-              {savedVehicle && (
-                <View
-                  style={[
-                    styles.savedVehicleCard,
-                    { backgroundColor: isDark ? "#1c1c1c" : "#f1f8e9" },
-                  ]}
-                >
-                  <ThemedText type="subtitle">
-                    Saved Vehicle: {savedVehicle.brand} {savedVehicle.model}
-                  </ThemedText>
-                  <Button
-                    title="Delete Saved Vehicle"
-                    color={isDark ? "#ff6b6b" : "red"}
-                    onPress={deleteSavedVehicle}
-                  />
-                </View>
-              )}
             </View>
-          }
-          data={availableVehicles}
-          keyExtractor={(item: ResponseVehicle) => `${item.brand}-${item.make}`}
-          renderItem={({ item }) => (
+          ))}
+
+          <TouchableOpacity
+            onPress={handleSaveVehicle}
+            style={[
+              styles.saveButton,
+              { backgroundColor: isDark ? "#fff" : "#000" },
+            ]}
+          >
+            <Text
+              style={{ color: isDark ? "#000" : "#fff", fontWeight: "700" }}
+            >
+              Save Vehicle
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        <>
+          {/* Search + Tabs */}
+          <View style={styles.searchTabsWrapper}>
+            {/* Search */}
+            <View style={styles.searchContainer}>
+              <View
+                style={[
+                  styles.searchBar,
+                  { backgroundColor: isDark ? "#1e1e1e" : "#f1f1f1" },
+                ]}
+              >
+                <Search size={18} color={isDark ? "#ccc" : "#555"} />
+                <TextInput
+                  style={[
+                    styles.searchInput,
+                    { color: isDark ? "#fff" : "#000" },
+                  ]}
+                  placeholder="Search your model"
+                  placeholderTextColor={isDark ? "#777" : "#999"}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                />
+              </View>
+            </View>
+
+            {/* Compact Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryContainer}
+            >
+              {categories.map((c) => {
+                const active = selectedCategory === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    onPress={() => handleCategorySelect(c.id)}
+                    style={[
+                      styles.categoryTab,
+                      {
+                        backgroundColor: active
+                          ? isDark
+                            ? "#fff"
+                            : "#000"
+                          : "transparent",
+                        borderColor: isDark ? "#555" : "#ccc",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: active
+                          ? isDark
+                            ? "#000"
+                            : "#fff"
+                          : isDark
+                          ? "#ccc"
+                          : "#333",
+                        fontWeight: "600",
+                        fontSize: 13,
+                      }}
+                    >
+                      {c.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Saved Vehicle */}
+          {savedVehicle && (
             <View
               style={[
-                styles.vehicleItem,
-                {
-                  backgroundColor:
-                    selectedVehicle &&
-                    selectedVehicle.make === item.make &&
-                    selectedVehicle.brand === item.brand
-                      ? isDark
-                        ? "#003d33"
-                        : "#e0f7fa"
-                      : isDark
-                      ? "#121212"
-                      : "#fff",
-                },
+                styles.savedVehicleCard,
+                { backgroundColor: isDark ? "#1c1c1c" : "#f1f8e9" },
               ]}
             >
-              <ThemedText>
-                {item.brand} {item.make}
-              </ThemedText>
-              <ThemedText>
-                Battery sizes: {item.batterySizeKwh.join(", ")} kWh
-              </ThemedText>
-              <ThemedText>Efficiency: {item.efficiency} kWh/100km</ThemedText>
-              <Button
-                title="Select"
-                color={isDark ? "#00bfa5" : "#00796b"}
-                onPress={() => handleSelectVehicle(item)}
-              />
+              <Text
+                style={[
+                  styles.savedVehicleTitle,
+                  { color: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                Saved Vehicle
+              </Text>
+              <Text style={{ color: isDark ? "#ccc" : "#333" }}>
+                {savedVehicle.brand} {savedVehicle.model} ({savedVehicle.year})
+              </Text>
+              <Text style={{ color: isDark ? "#aaa" : "#555" }}>
+                Battery: {savedVehicle.batterySizeKwh} kWh
+              </Text>
+              <Text style={{ color: isDark ? "#aaa" : "#555" }}>
+                Consumption: {savedVehicle.averageConsumption} Wh/km
+              </Text>
+              <TouchableOpacity
+                onPress={handleDeleteSavedVehicle}
+                style={[
+                  styles.deleteButton,
+                  { backgroundColor: isDark ? "#e74c3c" : "#d32f2f" },
+                ]}
+              >
+                <Text style={{ color: "#fff", fontWeight: "600" }}>
+                  Delete Saved Vehicle
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
-          contentContainerStyle={{ paddingBottom: 80 }}
-        />
-      </ThemedView>
-    </KeyboardAvoidingView>
+
+          {/* Vehicle List */}
+          <ScrollView style={styles.listContainer}>
+            {vehicles.map((car, index) => (
+              <TouchableOpacity
+                key={`${car.brand}-${car.make}-${index}`}
+                style={[
+                  styles.carRow,
+                  { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
+                ]}
+                onPress={() => handleCarPress(car)}
+              >
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: isDark ? "#333" : "#eee" },
+                  ]}
+                >
+                  <Car size={28} color={isDark ? "#fff" : "#333"} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: isDark ? "#fff" : "#000",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                  >
+                    {car.brand} {car.make}
+                  </Text>
+                  <Text style={{ color: isDark ? "#aaa" : "#555" }}>
+                    Efficiency: {car.efficiency} Wh/km
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={isDark ? "#aaa" : "#888"} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
+    </View>
   );
-});
+};
+
+export default ChooseCarScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerContainer: { padding: 16, alignItems: "center" },
-  formContainer: { width: "100%", marginTop: 16 },
-  input: {
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 12,
-    width: "100%",
-  },
-  toggleContainer: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginVertical: 12,
-    width: "100%",
-  },
-  vehicleItem: {
-    flexDirection: "column",
-    justifyContent: "flex-start",
     padding: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#333",
-    alignItems: "flex-start",
+    borderBottomWidth: 1,
+  },
+  backButton: { marginRight: 12 },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    flex: 1,
+    textAlign: "center",
+  },
+  searchTabsWrapper: {
+    paddingHorizontal: 12,
+    paddingBottom: 4,
+  },
+  searchContainer: { marginTop: 4 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 6,
+    fontSize: 15,
+    paddingVertical: 2,
+  },
+  categoryContainer: {
+    flexDirection: "row",
+    paddingVertical: 4,
+    gap: 16,
+    alignItems: "center",
+    marginTop: 6,
+  },
+  categoryTab: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  listContainer: {
+    flex: 1,
+    paddingTop: 4,
   },
   savedVehicleCard: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 8,
-    width: "100%",
+    marginHorizontal: 16,
+    marginVertical: 10,
+    padding: 16,
+    borderRadius: 12,
   },
-  reactLogo: { height: 120, width: 120, marginBottom: 8 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  savedVehicleTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
+  deleteButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  carRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  input: {
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+  },
+  saveButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
 });
-
-export default HomeScreen;

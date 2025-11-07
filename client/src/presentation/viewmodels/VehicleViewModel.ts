@@ -6,19 +6,25 @@ import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export interface VehicleUIState {
   availableVehicles: ResponseVehicle[];
+  filteredVehicles: ResponseVehicle[]; // 👈 new
   selectedVehicle: ResponseVehicle | null;
-  savedVehicle: Vehicle | null; // only ONE saved locally
+  savedVehicle: Vehicle | null;
   loading: boolean;
   error: string | null;
+  searchQuery: string; // 👈 new
+  selectedCategory: string; // 👈 new
 }
 
 export class VehicleViewModel {
   state: VehicleUIState = {
     availableVehicles: [],
+    filteredVehicles: [],
     selectedVehicle: null,
     savedVehicle: null,
     loading: false,
     error: null,
+    searchQuery: "",
+    selectedCategory: "all",
   };
 
   constructor(
@@ -38,6 +44,7 @@ export class VehicleViewModel {
       const data = await this.remoteRepo.getAllVehicles();
       runInAction(() => {
         this.state.availableVehicles = data;
+        this.state.filteredVehicles = data; // initialize
       });
     } catch (err: any) {
       runInAction(() => {
@@ -59,7 +66,6 @@ export class VehicleViewModel {
     try {
       const vehicles = await this.localRepo.getAllVehicles();
       runInAction(() => {
-        // Only one can exist, take the first
         this.state.savedVehicle = vehicles[0] ?? null;
       });
     } catch (err: any) {
@@ -71,6 +77,43 @@ export class VehicleViewModel {
         this.state.loading = false;
       });
     }
+  }
+
+  // ========================
+  // Filtering logic
+  // ========================
+  setSearchQuery(query: string) {
+    runInAction(() => {
+      this.state.searchQuery = query;
+    });
+    this.applyFilters();
+  }
+
+  setSelectedCategory(category: string) {
+    runInAction(() => {
+      this.state.selectedCategory = category;
+    });
+    this.applyFilters();
+  }
+
+  private applyFilters() {
+    const query = this.state.searchQuery.toLowerCase();
+    const category = this.state.selectedCategory.toLowerCase();
+
+    const filtered = this.state.availableVehicles.filter((v) => {
+      const brand = v.brand?.toLowerCase() ?? "";
+      const model = v.make?.toLowerCase() ?? "";
+
+      const matchesCategory = category === "all" || brand.includes(category);
+      const matchesQuery =
+        query === "" || brand.includes(query) || model.includes(query);
+
+      return matchesCategory && matchesQuery;
+    });
+
+    runInAction(() => {
+      this.state.filteredVehicles = filtered;
+    });
   }
 
   // ========================
@@ -129,13 +172,12 @@ export class VehicleViewModel {
     try {
       const selected = this.state.selectedVehicle;
 
-      // Merge remote data + user input
       const newVehicle: NewVehicle = {
         brand: selected.brand,
         model: selected.make,
         year: userValues.year ?? new Date().getFullYear(),
         batterySizeKwh: userValues.batterySizeKwh ?? selected.batterySizeKwh[0],
-        currentBatteryState: userValues.currentBatteryState ?? 100,
+        currentBatteryState: userValues.currentBatteryState ?? 0,
         averageConsumption:
           userValues.averageConsumption ?? selected.efficiency,
         latitude: userValues.latitude ?? 0,
@@ -146,7 +188,6 @@ export class VehicleViewModel {
 
       this.validateVehicle(newVehicle);
 
-      // Clear any existing local vehicle
       const existing = await this.localRepo.getAllVehicles();
       if (existing.length > 0) {
         await this.localRepo.deleteVehicle(existing[0].id);
