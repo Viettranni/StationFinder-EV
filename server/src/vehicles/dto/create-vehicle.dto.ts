@@ -1,8 +1,8 @@
 export class CreateVehicleDto {
   readonly brand: string;
   readonly make: string;
-  readonly year?: number;
-  readonly batterySizeKwh?: number;
+  readonly batterySizeKwh?: number | number[];
   readonly efficiency?: number;
+  readonly maxChargingSpeed_kW?: number | number[];
   readonly imageUrl?: string;
 }
