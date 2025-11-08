@@ -27,13 +27,10 @@ export class VehicleViewModel {
     selectedCategory: "all",
   };
 
-  // Battery modal state
-  isBatteryModalVisible = false;
+  // Selection options
   batteryOptions: number[] = [];
   selectedBattery: number | null = null;
 
-  // Chargin speed modal state
-  isChargingSpeedModalVisible = false;
   chargingSpeedOptions: number[] = [];
   selectedChargingSpeed: number | null = null;
 
@@ -145,68 +142,26 @@ export class VehicleViewModel {
       this.state.selectedVehicle = vehicle;
       this.batteryOptions = vehicle.batterySizeKwh ?? [];
       this.selectedBattery = null;
-      this.isBatteryModalVisible = true; // Open modal immediately
+      this.chargingSpeedOptions = vehicle.maxChargingSpeed_kW ?? [];
+      this.selectedChargingSpeed = null;
     });
   }
 
-  closeBatteryModal() {
-    runInAction(() => {
-      this.isBatteryModalVisible = false;
-      this.state.selectedVehicle = null;
-      this.selectedBattery = null;
-    });
-  }
-
-  // Inside VehicleViewModel
   selectBattery(value: number) {
     runInAction(() => {
       this.selectedBattery = value;
-      if (this.uiState.selectedVehicle) {
-        this.uiState.selectedVehicle.batterySizeKwh = [value];
+      if (this.state.selectedVehicle) {
+        this.state.selectedVehicle.batterySizeKwh = [value];
       }
-      this.isBatteryModalVisible = false;
-
-      // Automatically open charging speed modal after battery selection
-      this.openChargingSpeedSelection();
-    });
-  }
-
-  // ================= CHARGING SPEED MODAL =================
-  openChargingSpeedSelection() {
-    if (this.uiState.selectedVehicle?.maxChargingSpeed_kW) {
-      runInAction(() => {
-        this.chargingSpeedOptions =
-          this.uiState.selectedVehicle!.maxChargingSpeed_kW;
-        this.selectedChargingSpeed = null;
-        this.isChargingSpeedModalVisible = true;
-      });
-    }
-  }
-
-  closeChargingSpeedSelection() {
-    runInAction(() => {
-      this.isChargingSpeedModalVisible = false;
-      this.selectedChargingSpeed = null;
-    });
-  }
-
-  // Modify the back navigation for charging speed modal
-  goBackToBatteryModal() {
-    runInAction(() => {
-      this.isChargingSpeedModalVisible = false;
-      this.isBatteryModalVisible = true;
-      this.selectedChargingSpeed = null;
     });
   }
 
   selectChargingSpeed(value: number) {
     runInAction(() => {
       this.selectedChargingSpeed = value;
-      // Optionally, store in the vehicle form or selected vehicle
-      if (this.uiState.selectedVehicle) {
-        this.uiState.selectedVehicle.maxChargingSpeed_kW = [value];
+      if (this.state.selectedVehicle) {
+        this.state.selectedVehicle.maxChargingSpeed_kW = [value];
       }
-      this.closeChargingSpeedSelection();
     });
   }
 
