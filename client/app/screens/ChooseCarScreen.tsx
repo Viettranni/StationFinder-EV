@@ -141,61 +141,63 @@ const ChooseCarScreen: React.FC = observer(() => {
         style={styles.listContainer}
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {/* Custom model row */}
-        <View style={{ marginBottom: 12 }}>
-          <TouchableOpacity
-            style={[
-              styles.carRow,
-              { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
-            ]}
-            onPress={() => {
-              const customVehicle = {
-                id: "custom",
-                brand: "",
-                make: "",
-                batterySizeKwh: [],
-                maxChargingSpeed_kW: [],
-                efficiency: 0,
-                imageUrl: "", // <--- Add this
-              };
-              vm.selectVehicle(customVehicle);
-              navigation.navigate("screens/CustomVehicleFormScreen");
-            }}
-          >
-            <View
+        {/* Custom model row — hide when search is active */}
+        {searchQuery.trim().length === 0 && (
+          <View style={{ marginBottom: 12 }}>
+            <TouchableOpacity
               style={[
-                styles.iconContainer,
-                { backgroundColor: isDark ? "#333" : "#eee" },
+                styles.carRow,
+                { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
               ]}
+              onPress={() => {
+                const customVehicle = {
+                  id: "custom",
+                  brand: "",
+                  make: "",
+                  batterySizeKwh: [],
+                  maxChargingSpeed_kW: [],
+                  efficiency: 0,
+                  imageUrl: "",
+                };
+                vm.selectVehicle(customVehicle);
+                navigation.navigate("screens/CustomVehicleFormScreen");
+              }}
             >
-              <Car size={28} color={isDark ? "#fff" : "#333"} />
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  color: isDark ? "#fff" : "#000",
-                  fontWeight: "500",
-                  fontSize: 16,
-                }}
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: isDark ? "#333" : "#eee" },
+                ]}
               >
-                Custom model
-              </Text>
-              <Text style={{ color: isDark ? "#aaa" : "#555" }}>
-                Adjust yourself
-              </Text>
-            </View>
+                <Car size={28} color={isDark ? "#fff" : "#333"} />
+              </View>
 
-            <View
-              style={[
-                styles.chevronContainer,
-                { backgroundColor: isDark ? "#fff" : "#000" },
-              ]}
-            >
-              <ChevronRight size={20} color={isDark ? "#000" : "#fff"} />
-            </View>
-          </TouchableOpacity>
-        </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: isDark ? "#fff" : "#000",
+                    fontWeight: "500",
+                    fontSize: 16,
+                  }}
+                >
+                  Custom model
+                </Text>
+                <Text style={{ color: isDark ? "#aaa" : "#555" }}>
+                  Adjust yourself
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.chevronContainer,
+                  { backgroundColor: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                <ChevronRight size={20} color={isDark ? "#000" : "#fff"} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Existing vehicle list */}
         {filteredVehicles.map((car, i) => (
