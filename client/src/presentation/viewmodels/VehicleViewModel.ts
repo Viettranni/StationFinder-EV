@@ -13,11 +13,9 @@ export interface VehicleUIState {
   error: string | null;
   searchQuery: string;
   selectedCategory: string;
-  formValues: Partial<NewVehicle>;
 }
 
 export class VehicleViewModel {
-  // ============== Observable State ==============
   private state: VehicleUIState = {
     availableVehicles: [],
     filteredVehicles: [],
@@ -27,8 +25,12 @@ export class VehicleViewModel {
     error: null,
     searchQuery: "",
     selectedCategory: "all",
-    formValues: {},
   };
+
+  // Battery modal state
+  isBatteryModalVisible = false;
+  batteryOptions: number[] = [];
+  selectedBattery: number | null = null;
 
   constructor(
     private readonly localRepo: IVehicleRepository,
@@ -37,10 +39,7 @@ export class VehicleViewModel {
     makeAutoObservable(this, {}, { autoBind: true });
   }
 
-  // ==================================================
-  // COMPUTED PROPERTIES
-  // ==================================================
-
+  // ================= COMPUTED =================
   get categories() {
     const brands = Array.from(
       new Set(
@@ -60,10 +59,7 @@ export class VehicleViewModel {
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
-  // ==================================================
-  // REMOTE DATA (API)
-  // ==================================================
-
+  // ================= REMOTE DATA =================
   async fetchAvailableVehicles() {
     runInAction(() => {
       this.state.loading = true;
@@ -77,12 +73,9 @@ export class VehicleViewModel {
         this.state.filteredVehicles = data;
       });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch available vehicles";
       runInAction(() => {
-        this.state.error = message;
+        this.state.error =
+          err instanceof Error ? err.message : "Failed to fetch vehicles";
       });
     } finally {
       runInAction(() => {
@@ -90,10 +83,6 @@ export class VehicleViewModel {
       });
     }
   }
-
-  // ==================================================
-  // LOCAL DATA (DB)
-  // ==================================================
 
   async fetchSavedVehicle() {
     runInAction(() => {
@@ -107,10 +96,9 @@ export class VehicleViewModel {
         this.state.savedVehicle = vehicles[0] ?? null;
       });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch saved vehicle";
       runInAction(() => {
-        this.state.error = message;
+        this.state.error =
+          err instanceof Error ? err.message : "Failed to fetch saved vehicle";
       });
     } finally {
       runInAction(() => {
@@ -119,10 +107,7 @@ export class VehicleViewModel {
     }
   }
 
-  // ==================================================
-  // FILTERING LOGIC
-  // ==================================================
-
+  // ================= FILTERING =================
   setSearchQuery(query: string) {
     this.state.searchQuery = query;
     this.applyFilters();
@@ -140,81 +125,60 @@ export class VehicleViewModel {
     const filtered = this.state.availableVehicles.filter((v) => {
       const brand = v.brand?.toLowerCase() ?? "";
       const model = v.make?.toLowerCase() ?? "";
-
       const matchesCategory = category === "all" || brand.includes(category);
       const matchesQuery =
         query === "" || brand.includes(query) || model.includes(query);
-
       return matchesCategory && matchesQuery;
     });
 
     this.state.filteredVehicles = filtered;
   }
 
-  // ==================================================
-  // SELECTION + FORM MANAGEMENT
-  // ==================================================
-
+  // ================= SELECTION =================
   selectVehicle(vehicle: ResponseVehicle) {
-    this.state.selectedVehicle = vehicle;
-    this.state.formValues = {
-      brand: vehicle.brand,
-      model: vehicle.make,
+    runInAction(() => {
+      this.state.selectedVehicle = vehicle;
+      this.batteryOptions = vehicle.batterySizeKwh ?? [];
+      this.selectedBattery = null;
+      this.isBatteryModalVisible = true; // Open modal immediately
+    });
+  }
+
+  closeBatteryModal() {
+    runInAction(() => {
+      this.isBatteryModalVisible = false;
+      this.state.selectedVehicle = null;
+      this.selectedBattery = null;
+    });
+  }
+
+  selectBattery(value: number) {
+    runInAction(() => {
+      this.selectedBattery = value;
+      if (this.state.selectedVehicle) {
+        this.state.selectedVehicle.batterySizeKwh = [value];
+      }
+      this.closeBatteryModal();
+    });
+  }
+
+  // ================= SAVE/DELETE =================
+  async saveSelectedVehicle() {
+    const selected = this.state.selectedVehicle;
+    if (!selected) throw new Error("No vehicle selected");
+
+    const newVehicle: NewVehicle = {
+      brand: selected.brand,
+      model: selected.make,
+      batterySizeKwh: this.selectedBattery ?? selected.batterySizeKwh?.[0] ?? 0,
       year: new Date().getFullYear(),
-      batterySizeKwh: vehicle.batterySizeKwh?.[0] ?? 0,
       currentBatteryState: 0,
-      averageConsumption: vehicle.efficiency ?? 0,
+      averageConsumption: selected.efficiency ?? 0,
       latitude: 0,
       longitude: 0,
       favourites: "false",
       createdAt: new Date().toISOString(),
     };
-  }
-
-  clearSelectedVehicle() {
-    this.state.selectedVehicle = null;
-    this.state.formValues = {};
-  }
-
-  updateFormValue<K extends keyof NewVehicle>(key: K, value: NewVehicle[K]) {
-    this.state.formValues[key] = value;
-  }
-
-  // ==================================================
-  // VALIDATION
-  // ==================================================
-
-  private validateVehicle(vehicle: NewVehicle) {
-    if (!vehicle.brand || !vehicle.model)
-      throw new Error("Brand and model are required");
-    if (vehicle.year < 2000 || vehicle.year > 2100)
-      throw new Error("Year must be between 2000 and 2100");
-    if (vehicle.batterySizeKwh <= 0)
-      throw new Error("Battery size must be positive");
-    if (
-      vehicle.currentBatteryState < 0 ||
-      vehicle.currentBatteryState > vehicle.batterySizeKwh
-    )
-      throw new Error("Invalid current battery state");
-  }
-
-  // ==================================================
-  // SAVE SELECTED VEHICLE → LOCAL DB
-  // ==================================================
-
-  async saveSelectedVehicle() {
-    const selected = this.state.selectedVehicle;
-    const form = this.state.formValues;
-    if (!selected) throw new Error("No vehicle selected");
-
-    const newVehicle: NewVehicle = {
-      ...form,
-      brand: selected.brand,
-      model: selected.make,
-      createdAt: new Date().toISOString(),
-    } as NewVehicle;
-
-    this.validateVehicle(newVehicle);
 
     const existing = await this.localRepo.getAllVehicles();
     if (existing.length > 0) {
@@ -226,27 +190,16 @@ export class VehicleViewModel {
     return id;
   }
 
-  // ==================================================
-  // DELETE SAVED VEHICLE
-  // ==================================================
-
   async deleteSavedVehicle() {
     const saved = this.state.savedVehicle;
     if (!saved) return;
-
     await this.localRepo.deleteVehicle(saved.id);
-
     runInAction(() => {
       this.state.savedVehicle = null;
     });
   }
 
-  // ==================================================
-  // UI STATE GETTER
-  // ==================================================
-
   get uiState() {
-    // Return actual observable state (not a shallow copy)
     return this.state;
   }
 }
