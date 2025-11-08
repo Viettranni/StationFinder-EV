@@ -1,56 +1,27 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   TextInput,
-  useColorScheme,
-  StyleSheet,
   ActivityIndicator,
+  StyleSheet,
   Alert,
+  useColorScheme,
 } from "react-native";
+import { observer } from "mobx-react-lite";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Search, ChevronRight, Car } from "lucide-react-native";
 import { containerPromise } from "../../src/di/container";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
-import { ResponseVehicle } from "../../src/data/local/dao/ResponseVehicle";
-import { Vehicle } from "../../src/domain/entities/Vehicle";
 
-const ChooseCarScreen: React.FC = () => {
+const ChooseCarScreen: React.FC = observer(() => {
+  const [vm, setVm] = React.useState<VehicleViewModel>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
 
-  const [vm, setVm] = useState<VehicleViewModel | null>(null);
-  const [vehicles, setVehicles] = useState<ResponseVehicle[]>([]);
-  const [savedVehicle, setSavedVehicle] = useState<Vehicle | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [loading, setLoading] = useState(true);
-
-  const [selectedCar, setSelectedCar] = useState<ResponseVehicle | null>(null);
-  const [formValues, setFormValues] = useState({
-    brand: "",
-    model: "",
-    year: "",
-    batterySizeKwh: "",
-    currentBatteryState: "",
-    averageConsumption: "",
-    latitude: "",
-    longitude: "",
-    favourites: "false",
-  });
-
-  const categories = [
-    { id: "all", name: "All" },
-    { id: "tesla", name: "Tesla" },
-    { id: "audi", name: "Audi" },
-    { id: "hyundai", name: "Hyundai" },
-    { id: "polestar", name: "Polestar" },
-  ];
-
-  // ======== INIT ========
   useEffect(() => {
     (async () => {
       const container = await containerPromise;
@@ -59,84 +30,10 @@ const ChooseCarScreen: React.FC = () => {
 
       await vehicleVM.fetchAvailableVehicles();
       await vehicleVM.fetchSavedVehicle();
-
-      const state = vehicleVM.uiState;
-      setVehicles(state.filteredVehicles);
-      setSavedVehicle(state.savedVehicle);
-      setLoading(false);
     })();
   }, []);
 
-  // ======== HANDLERS ========
-
-  const handleSearchChange = (text: string) => {
-    if (!vm) return;
-    vm.setSearchQuery(text);
-    setSearchQuery(text);
-    setVehicles(vm.uiState.filteredVehicles);
-  };
-
-  const handleCategorySelect = (categoryId: string) => {
-    if (!vm) return;
-    vm.setSelectedCategory(categoryId);
-    setSelectedCategory(categoryId);
-    setVehicles(vm.uiState.filteredVehicles);
-  };
-
-  const handleCarPress = (car: ResponseVehicle) => {
-    if (!vm) return;
-    vm.selectVehicle(car);
-    setSelectedCar(car);
-    setFormValues({
-      brand: car.brand ?? "",
-      model: car.make ?? "",
-      year: new Date().getFullYear().toString(),
-      batterySizeKwh: car.batterySizeKwh?.[0]?.toString() ?? "",
-      currentBatteryState: "0",
-      averageConsumption: car.efficiency?.toString() ?? "",
-      latitude: "0",
-      longitude: "0",
-      favourites: "false",
-    });
-  };
-
-  const handleSaveVehicle = async () => {
-    if (!vm || !selectedCar) return;
-    try {
-      await vm.saveSelectedVehicle({
-        brand: formValues.brand,
-        model: formValues.model,
-        year: parseInt(formValues.year),
-        batterySizeKwh: parseFloat(formValues.batterySizeKwh),
-        currentBatteryState: parseFloat(formValues.currentBatteryState),
-        averageConsumption: parseFloat(formValues.averageConsumption),
-        latitude: parseFloat(formValues.latitude),
-        longitude: parseFloat(formValues.longitude),
-        favourites: formValues.favourites,
-        createdAt: new Date().toISOString(),
-      });
-
-      setSavedVehicle(vm.uiState.savedVehicle);
-      setSelectedCar(null);
-      Alert.alert("Success", "Vehicle saved successfully!");
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to save vehicle");
-    }
-  };
-
-  const handleDeleteSavedVehicle = async () => {
-    if (!vm) return;
-    await vm.deleteSavedVehicle();
-    setSavedVehicle(null);
-  };
-
-  const handleBackPress = () => {
-    if (selectedCar) setSelectedCar(null);
-    else console.log("Back pressed");
-  };
-
-  // ======== RENDER ========
-  if (loading) {
+  if (!vm || vm.uiState.loading) {
     return (
       <View
         style={[
@@ -152,6 +49,26 @@ const ChooseCarScreen: React.FC = () => {
     );
   }
 
+  const {
+    filteredVehicles,
+    savedVehicle,
+    selectedVehicle,
+    formValues,
+    searchQuery,
+    selectedCategory,
+  } = vm.uiState;
+
+  const handleSave = async () => {
+    try {
+      await vm.saveSelectedVehicle();
+      Alert.alert("Success", "Vehicle saved successfully!");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to save vehicle";
+      Alert.alert("Error", message);
+    }
+  };
+
   return (
     <View
       style={[
@@ -166,16 +83,19 @@ const ChooseCarScreen: React.FC = () => {
       <View
         style={[styles.header, { borderBottomColor: isDark ? "#333" : "#eee" }]}
       >
-        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => vm.clearSelectedVehicle()}
+          style={styles.backButton}
+        >
           <ChevronLeft size={24} color={isDark ? "#fff" : "#000"} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}>
-          {selectedCar ? "Edit Vehicle" : "Choose a Car"}
+          {selectedVehicle ? "Edit Vehicle" : "Choose a Car"}
         </Text>
       </View>
 
       {/* FORM */}
-      {selectedCar ? (
+      {selectedVehicle ? (
         <ScrollView style={{ padding: 16 }}>
           {Object.entries(formValues).map(([key, value]) => (
             <View key={key} style={{ marginBottom: 12 }}>
@@ -192,28 +112,16 @@ const ChooseCarScreen: React.FC = () => {
                     color: isDark ? "#fff" : "#000",
                   },
                 ]}
-                value={value}
+                value={String(value ?? "")}
                 onChangeText={(text) =>
-                  setFormValues((p) => ({ ...p, [key]: text }))
-                }
-                keyboardType={
-                  [
-                    "year",
-                    "batterySizeKwh",
-                    "currentBatteryState",
-                    "averageConsumption",
-                    "latitude",
-                    "longitude",
-                  ].includes(key)
-                    ? "numeric"
-                    : "default"
+                  vm.updateFormValue(key as any, text as any)
                 }
               />
             </View>
           ))}
 
           <TouchableOpacity
-            onPress={handleSaveVehicle}
+            onPress={handleSave}
             style={[
               styles.saveButton,
               { backgroundColor: isDark ? "#fff" : "#000" },
@@ -228,9 +136,8 @@ const ChooseCarScreen: React.FC = () => {
         </ScrollView>
       ) : (
         <>
-          {/* Search + Tabs */}
+          {/* Search + Categories */}
           <View style={styles.searchTabsWrapper}>
-            {/* Search */}
             <View style={styles.searchContainer}>
               <View
                 style={[
@@ -247,23 +154,22 @@ const ChooseCarScreen: React.FC = () => {
                   placeholder="Search your model"
                   placeholderTextColor={isDark ? "#777" : "#999"}
                   value={searchQuery}
-                  onChangeText={handleSearchChange}
+                  onChangeText={(text) => vm.setSearchQuery(text)}
                 />
               </View>
             </View>
 
-            {/* Compact Tabs */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryContainer}
             >
-              {categories.map((c) => {
+              {vm.categories.map((c) => {
                 const active = selectedCategory === c.id;
                 return (
                   <TouchableOpacity
                     key={c.id}
-                    onPress={() => handleCategorySelect(c.id)}
+                    onPress={() => vm.setSelectedCategory(c.id)}
                     style={[
                       styles.categoryTab,
                       {
@@ -319,11 +225,8 @@ const ChooseCarScreen: React.FC = () => {
               <Text style={{ color: isDark ? "#aaa" : "#555" }}>
                 Battery: {savedVehicle.batterySizeKwh} kWh
               </Text>
-              <Text style={{ color: isDark ? "#aaa" : "#555" }}>
-                Consumption: {savedVehicle.averageConsumption} Wh/km
-              </Text>
               <TouchableOpacity
-                onPress={handleDeleteSavedVehicle}
+                onPress={() => vm.deleteSavedVehicle()}
                 style={[
                   styles.deleteButton,
                   { backgroundColor: isDark ? "#e74c3c" : "#d32f2f" },
@@ -338,14 +241,14 @@ const ChooseCarScreen: React.FC = () => {
 
           {/* Vehicle List */}
           <ScrollView style={styles.listContainer}>
-            {vehicles.map((car, index) => (
+            {filteredVehicles.map((car, i) => (
               <TouchableOpacity
-                key={`${car.brand}-${car.make}-${index}`}
+                key={`${car.brand}-${car.make}-${i}`}
                 style={[
                   styles.carRow,
                   { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
                 ]}
-                onPress={() => handleCarPress(car)}
+                onPress={() => vm.selectVehicle(car)}
               >
                 <View
                   style={[
@@ -377,7 +280,7 @@ const ChooseCarScreen: React.FC = () => {
       )}
     </View>
   );
-};
+});
 
 export default ChooseCarScreen;
 
@@ -396,10 +299,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
   },
-  searchTabsWrapper: {
-    paddingHorizontal: 12,
-    paddingBottom: 4,
-  },
+  searchTabsWrapper: { paddingHorizontal: 12, paddingBottom: 4 },
   searchContainer: { marginTop: 4 },
   searchBar: {
     flexDirection: "row",
@@ -429,10 +329,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  listContainer: {
-    flex: 1,
-    paddingTop: 4,
-  },
+  listContainer: { flex: 1, paddingTop: 4 },
   savedVehicleCard: {
     marginHorizontal: 16,
     marginVertical: 10,

@@ -6,17 +6,19 @@ import { Vehicle, NewVehicle } from "../../domain/entities/Vehicle";
 
 export interface VehicleUIState {
   availableVehicles: ResponseVehicle[];
-  filteredVehicles: ResponseVehicle[]; // 👈 new
+  filteredVehicles: ResponseVehicle[];
   selectedVehicle: ResponseVehicle | null;
   savedVehicle: Vehicle | null;
   loading: boolean;
   error: string | null;
-  searchQuery: string; // 👈 new
-  selectedCategory: string; // 👈 new
+  searchQuery: string;
+  selectedCategory: string;
+  formValues: Partial<NewVehicle>;
 }
 
 export class VehicleViewModel {
-  state: VehicleUIState = {
+  // ============== Observable State ==============
+  private state: VehicleUIState = {
     availableVehicles: [],
     filteredVehicles: [],
     selectedVehicle: null,
@@ -25,30 +27,62 @@ export class VehicleViewModel {
     error: null,
     searchQuery: "",
     selectedCategory: "all",
+    formValues: {},
   };
 
   constructor(
     private readonly localRepo: IVehicleRepository,
     private readonly remoteRepo: RemoteVehicleRepository
   ) {
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, { autoBind: true });
   }
 
-  // ========================
-  // Remote data (API)
-  // ========================
+  // ==================================================
+  // COMPUTED PROPERTIES
+  // ==================================================
+
+  get categories() {
+    const brands = Array.from(
+      new Set(
+        this.state.availableVehicles
+          .map((v) => v.brand?.toLowerCase().trim())
+          .filter((b): b is string => !!b && b.length > 0)
+      )
+    ).sort();
+
+    return [
+      { id: "all", name: "All" },
+      ...brands.map((b) => ({ id: b, name: this.capitalize(b) })),
+    ];
+  }
+
+  private capitalize(str: string) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  // ==================================================
+  // REMOTE DATA (API)
+  // ==================================================
+
   async fetchAvailableVehicles() {
-    this.state.loading = true;
-    this.state.error = null;
+    runInAction(() => {
+      this.state.loading = true;
+      this.state.error = null;
+    });
+
     try {
       const data = await this.remoteRepo.getAllVehicles();
       runInAction(() => {
         this.state.availableVehicles = data;
-        this.state.filteredVehicles = data; // initialize
+        this.state.filteredVehicles = data;
       });
-    } catch (err: any) {
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch available vehicles";
       runInAction(() => {
-        this.state.error = err.message || "Failed to fetch available vehicles";
+        this.state.error = message;
       });
     } finally {
       runInAction(() => {
@@ -57,20 +91,26 @@ export class VehicleViewModel {
     }
   }
 
-  // ========================
-  // Local data (DB)
-  // ========================
+  // ==================================================
+  // LOCAL DATA (DB)
+  // ==================================================
+
   async fetchSavedVehicle() {
-    this.state.loading = true;
-    this.state.error = null;
+    runInAction(() => {
+      this.state.loading = true;
+      this.state.error = null;
+    });
+
     try {
       const vehicles = await this.localRepo.getAllVehicles();
       runInAction(() => {
         this.state.savedVehicle = vehicles[0] ?? null;
       });
-    } catch (err: any) {
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to fetch saved vehicle";
       runInAction(() => {
-        this.state.error = err.message || "Failed to fetch saved vehicle";
+        this.state.error = message;
       });
     } finally {
       runInAction(() => {
@@ -79,20 +119,17 @@ export class VehicleViewModel {
     }
   }
 
-  // ========================
-  // Filtering logic
-  // ========================
+  // ==================================================
+  // FILTERING LOGIC
+  // ==================================================
+
   setSearchQuery(query: string) {
-    runInAction(() => {
-      this.state.searchQuery = query;
-    });
+    this.state.searchQuery = query;
     this.applyFilters();
   }
 
   setSelectedCategory(category: string) {
-    runInAction(() => {
-      this.state.selectedCategory = category;
-    });
+    this.state.selectedCategory = category;
     this.applyFilters();
   }
 
@@ -111,122 +148,105 @@ export class VehicleViewModel {
       return matchesCategory && matchesQuery;
     });
 
-    runInAction(() => {
-      this.state.filteredVehicles = filtered;
-    });
+    this.state.filteredVehicles = filtered;
   }
 
-  // ========================
-  // User selection
-  // ========================
+  // ==================================================
+  // SELECTION + FORM MANAGEMENT
+  // ==================================================
+
   selectVehicle(vehicle: ResponseVehicle) {
-    runInAction(() => {
-      this.state.selectedVehicle = vehicle;
-    });
+    this.state.selectedVehicle = vehicle;
+    this.state.formValues = {
+      brand: vehicle.brand,
+      model: vehicle.make,
+      year: new Date().getFullYear(),
+      batterySizeKwh: vehicle.batterySizeKwh?.[0] ?? 0,
+      currentBatteryState: 0,
+      averageConsumption: vehicle.efficiency ?? 0,
+      latitude: 0,
+      longitude: 0,
+      favourites: "false",
+      createdAt: new Date().toISOString(),
+    };
   }
 
-  // ========================
-  // Validation
-  // ========================
+  clearSelectedVehicle() {
+    this.state.selectedVehicle = null;
+    this.state.formValues = {};
+  }
+
+  updateFormValue<K extends keyof NewVehicle>(key: K, value: NewVehicle[K]) {
+    this.state.formValues[key] = value;
+  }
+
+  // ==================================================
+  // VALIDATION
+  // ==================================================
+
   private validateVehicle(vehicle: NewVehicle) {
-    if (!vehicle.brand || !vehicle.model) {
+    if (!vehicle.brand || !vehicle.model)
       throw new Error("Brand and model are required");
-    }
-    if (vehicle.year && (vehicle.year < 2000 || vehicle.year > 2100)) {
+    if (vehicle.year < 2000 || vehicle.year > 2100)
       throw new Error("Year must be between 2000 and 2100");
-    }
-    if (vehicle.batterySizeKwh <= 0) {
+    if (vehicle.batterySizeKwh <= 0)
       throw new Error("Battery size must be positive");
-    }
     if (
       vehicle.currentBatteryState < 0 ||
       vehicle.currentBatteryState > vehicle.batterySizeKwh
-    ) {
+    )
       throw new Error("Invalid current battery state");
-    }
-    if (vehicle.averageConsumption < 0) {
-      throw new Error("Average consumption must be non-negative");
-    }
-    if (vehicle.latitude < -90 || vehicle.latitude > 90) {
-      throw new Error("Latitude must be between -90 and 90");
-    }
-    if (vehicle.longitude < -180 || vehicle.longitude > 180) {
-      throw new Error("Longitude must be between -180 and 180");
-    }
-    if (vehicle.favourites !== "true" && vehicle.favourites !== "false") {
-      throw new Error('Favourites must be "true" or "false"');
-    }
-    if (!vehicle.createdAt) {
-      throw new Error("createdAt is required");
-    }
   }
 
-  // ========================
-  // Save selected -> local DB
-  // ========================
-  async saveSelectedVehicle(userValues: Partial<NewVehicle>) {
-    if (!this.state.selectedVehicle) {
-      throw new Error("No vehicle selected");
+  // ==================================================
+  // SAVE SELECTED VEHICLE → LOCAL DB
+  // ==================================================
+
+  async saveSelectedVehicle() {
+    const selected = this.state.selectedVehicle;
+    const form = this.state.formValues;
+    if (!selected) throw new Error("No vehicle selected");
+
+    const newVehicle: NewVehicle = {
+      ...form,
+      brand: selected.brand,
+      model: selected.make,
+      createdAt: new Date().toISOString(),
+    } as NewVehicle;
+
+    this.validateVehicle(newVehicle);
+
+    const existing = await this.localRepo.getAllVehicles();
+    if (existing.length > 0) {
+      await this.localRepo.deleteVehicle(existing[0].id);
     }
 
-    try {
-      const selected = this.state.selectedVehicle;
-
-      const newVehicle: NewVehicle = {
-        brand: selected.brand,
-        model: selected.make,
-        year: userValues.year ?? new Date().getFullYear(),
-        batterySizeKwh: userValues.batterySizeKwh ?? selected.batterySizeKwh[0],
-        currentBatteryState: userValues.currentBatteryState ?? 0,
-        averageConsumption:
-          userValues.averageConsumption ?? selected.efficiency,
-        latitude: userValues.latitude ?? 0,
-        longitude: userValues.longitude ?? 0,
-        favourites: userValues.favourites ?? "false",
-        createdAt: new Date().toISOString(),
-      };
-
-      this.validateVehicle(newVehicle);
-
-      const existing = await this.localRepo.getAllVehicles();
-      if (existing.length > 0) {
-        await this.localRepo.deleteVehicle(existing[0].id);
-      }
-
-      const id = await this.localRepo.addVehicle(newVehicle);
-      await this.fetchSavedVehicle();
-
-      return id;
-    } catch (err: any) {
-      runInAction(() => {
-        this.state.error = err.message || "Failed to save vehicle";
-      });
-      throw err;
-    }
+    const id = await this.localRepo.addVehicle(newVehicle);
+    await this.fetchSavedVehicle();
+    return id;
   }
 
-  // ========================
-  // Delete saved vehicle
-  // ========================
+  // ==================================================
+  // DELETE SAVED VEHICLE
+  // ==================================================
+
   async deleteSavedVehicle() {
-    if (!this.state.savedVehicle) return;
-    try {
-      await this.localRepo.deleteVehicle(this.state.savedVehicle.id);
-      runInAction(() => {
-        this.state.savedVehicle = null;
-      });
-    } catch (err: any) {
-      runInAction(() => {
-        this.state.error = err.message || "Failed to delete saved vehicle";
-      });
-      throw err;
-    }
+    const saved = this.state.savedVehicle;
+    if (!saved) return;
+
+    await this.localRepo.deleteVehicle(saved.id);
+
+    runInAction(() => {
+      this.state.savedVehicle = null;
+    });
   }
 
-  // ========================
-  // UI State getter
-  // ========================
+  // ==================================================
+  // UI STATE GETTER
+  // ==================================================
+
   get uiState() {
-    return { ...this.state };
+    // Return actual observable state (not a shallow copy)
+    return this.state;
   }
 }
