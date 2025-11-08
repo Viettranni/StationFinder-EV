@@ -63,7 +63,7 @@ const ChooseCarScreen: React.FC = observer(() => {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <TouchableOpacity onPress={() => /*navigation.goBack()*/ {}}>
           <ChevronLeft size={28} color={isDark ? "#fff" : "#000"} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}>
@@ -71,6 +71,7 @@ const ChooseCarScreen: React.FC = observer(() => {
         </Text>
         <View style={{ width: 28 }} />
       </View>
+
       {/* Search + Categories */}
       <View style={styles.searchTabsWrapper}>
         <View style={styles.searchContainer}>
@@ -136,17 +137,29 @@ const ChooseCarScreen: React.FC = observer(() => {
       </View>
 
       {/* Vehicle List */}
-      <ScrollView style={styles.listContainer}>
-        {filteredVehicles.map((car, i) => (
+      <ScrollView
+        style={styles.listContainer}
+        contentContainerStyle={{ paddingBottom: 24 }}
+      >
+        {/* Custom model row */}
+        <View style={{ marginBottom: 12 }}>
           <TouchableOpacity
-            key={`${car.brand}-${car.make}-${i}`}
             style={[
               styles.carRow,
               { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
             ]}
             onPress={() => {
-              vm.selectVehicle(car);
-              navigation.navigate("screens/BatterySelectionScreen");
+              const customVehicle = {
+                id: "custom",
+                brand: "",
+                make: "",
+                batterySizeKwh: [],
+                maxChargingSpeed_kW: [],
+                efficiency: 0,
+                imageUrl: "", // <--- Add this
+              };
+              vm.selectVehicle(customVehicle);
+              navigation.navigate("screens/CustomVehicleFormScreen");
             }}
           >
             <View
@@ -157,23 +170,83 @@ const ChooseCarScreen: React.FC = observer(() => {
             >
               <Car size={28} color={isDark ? "#fff" : "#333"} />
             </View>
+
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   color: isDark ? "#fff" : "#000",
-                  fontWeight: "600",
+                  fontWeight: "500",
                   fontSize: 16,
                 }}
               >
-                {car.brand} {car.make}
+                Custom model
               </Text>
               <Text style={{ color: isDark ? "#aaa" : "#555" }}>
-                Efficiency: {car.efficiency} Wh/km
+                Adjust yourself
               </Text>
             </View>
-            {/* Make sure ChevronRight is a component, not a string */}
-            <ChevronRight size={20} color={isDark ? "#aaa" : "#888"} />
+
+            <View
+              style={[
+                styles.chevronContainer,
+                { backgroundColor: isDark ? "#fff" : "#000" },
+              ]}
+            >
+              <ChevronRight size={20} color={isDark ? "#000" : "#fff"} />
+            </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Existing vehicle list */}
+        {filteredVehicles.map((car, i) => (
+          <View
+            key={`${car.brand}-${car.make}-${i}`}
+            style={{ marginBottom: 12 }}
+          >
+            <TouchableOpacity
+              style={[
+                styles.carRow,
+                { backgroundColor: isDark ? "#1a1a1a" : "#fff" },
+              ]}
+              onPress={() => {
+                vm.selectVehicle(car);
+                navigation.navigate("screens/BatterySelectionScreen");
+              }}
+            >
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: isDark ? "#333" : "#eee" },
+                ]}
+              >
+                <Car size={28} color={isDark ? "#fff" : "#333"} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: isDark ? "#fff" : "#000",
+                    fontWeight: "500",
+                    fontSize: 16,
+                  }}
+                >
+                  {car.brand} {car.make}
+                </Text>
+                <Text style={{ color: isDark ? "#aaa" : "#555" }}>
+                  Efficiency: {car.efficiency} Wh/km
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.chevronContainer,
+                  { backgroundColor: isDark ? "#fff" : "#000" },
+                ]}
+              >
+                <ChevronRight size={20} color={isDark ? "#000" : "#fff"} />
+              </View>
+            </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
     </View>
@@ -192,13 +265,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   headerTitle: { fontSize: 18, fontWeight: "700" },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginTop: 24,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
   searchTabsWrapper: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -216,26 +282,39 @@ const styles = StyleSheet.create({
   categoryContainer: {
     flexDirection: "row",
     paddingVertical: 4,
-    gap: 16,
+    gap: 8,
     alignItems: "center",
     marginTop: 6,
   },
   categoryTab: {
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  listContainer: { flex: 1, paddingTop: 4 },
-  carRow: { flexDirection: "row", alignItems: "center", padding: 16 },
+  listContainer: { flex: 1, paddingTop: 8 },
+  carRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+  },
+  chevronContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

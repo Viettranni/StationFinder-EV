@@ -32,8 +32,8 @@ const BatterySelectionScreen: React.FC = observer(() => {
   if (!vm) return null;
 
   const handleSelectBattery = (value: number) => {
-    vm.selectBattery(value);
-    navigation.navigate("screens/ChargingSpeedSelectionScreen");
+    vm.setBatterySize(value); // no mutation to selectedVehicle
+    navigation.navigate("screens/ChargingSpeedSelectionScreen"); // now goes correctly
   };
 
   return (
