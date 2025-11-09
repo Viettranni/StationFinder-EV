@@ -113,6 +113,7 @@ const BatterySizeInputScreen: React.FC = observer(() => {
             }}
             placeholder="0"
             placeholderTextColor={isDark ? "#888" : "#ccc"}
+            showSoftInputOnFocus={false}
           />
           <Text style={[styles.unitText, { color: isDark ? "#aaa" : "#555" }]}>
             kW
