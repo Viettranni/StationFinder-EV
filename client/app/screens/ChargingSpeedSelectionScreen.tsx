@@ -1,4 +1,6 @@
+// =============================================================================
 // ChargingSpeedSelectionScreen.tsx
+// =============================================================================
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -33,7 +35,14 @@ const ChargingSpeedSelectionScreen: React.FC = observer(() => {
 
   const handleSelectSpeed = (value: number) => {
     vm.selectChargingSpeed(value);
-    navigation.goBack(); // back to previous or finish
+    console.log("Selected Vehicle:", vm.uiState.selectedVehicle);
+    console.log("Selected Battery:", vm.selectedBattery);
+    console.log("Selected Charging Speed:", vm.selectedChargingSpeed);
+    navigation.goBack();
+  };
+
+  const handleManualInput = () => {
+    navigation.navigate("screens/ChargingSpeedInputScreen");
   };
 
   return (
@@ -57,10 +66,12 @@ const ChargingSpeedSelectionScreen: React.FC = observer(() => {
         <View style={{ width: 28 }} />
       </View>
 
+      {/* Title */}
       <Text style={[styles.title, { color: isDark ? "#fff" : "#000" }]}>
         Select Charging Speed
       </Text>
 
+      {/* Options List */}
       <ScrollView contentContainerStyle={styles.optionsList}>
         {vm.chargingSpeedOptions.map((speed, idx) => (
           <TouchableOpacity
@@ -89,12 +100,13 @@ const ChargingSpeedSelectionScreen: React.FC = observer(() => {
           </TouchableOpacity>
         ))}
 
+        {/* Manual Input Option */}
         <TouchableOpacity
           style={[
             styles.optionItem,
             { backgroundColor: isDark ? "#1a1a1a" : "#f8f8f8" },
           ]}
-          onPress={() => handleSelectSpeed(0)}
+          onPress={handleManualInput}
         >
           <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 16 }}>
             Input Manually

@@ -1,4 +1,6 @@
+// =============================================================================
 // BatterySelectionScreen.tsx
+// =============================================================================
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -32,8 +34,13 @@ const BatterySelectionScreen: React.FC = observer(() => {
   if (!vm) return null;
 
   const handleSelectBattery = (value: number) => {
-    vm.setBatterySize(value); // no mutation to selectedVehicle
-    navigation.navigate("screens/ChargingSpeedSelectionScreen"); // now goes correctly
+    vm.selectBattery(value); // update ViewModel (no mutation to selectedVehicle)
+    navigation.navigate("screens/ChargingSpeedSelectionScreen");
+  };
+
+  const handleManualInput = () => {
+    // Navigate to battery size input screen instead
+    navigation.navigate("screens/BatterySizeInputScreen");
   };
 
   return (
@@ -57,10 +64,12 @@ const BatterySelectionScreen: React.FC = observer(() => {
         <View style={{ width: 28 }} />
       </View>
 
+      {/* Title */}
       <Text style={[styles.title, { color: isDark ? "#fff" : "#000" }]}>
         Choose Battery Size
       </Text>
 
+      {/* Battery Options */}
       <ScrollView contentContainerStyle={styles.optionsList}>
         {vm.batteryOptions.map((b, idx) => (
           <TouchableOpacity
@@ -89,12 +98,13 @@ const BatterySelectionScreen: React.FC = observer(() => {
           </TouchableOpacity>
         ))}
 
+        {/* Manual Input Option */}
         <TouchableOpacity
           style={[
             styles.optionItem,
             { backgroundColor: isDark ? "#1a1a1a" : "#f8f8f8" },
           ]}
-          onPress={() => handleSelectBattery(0)}
+          onPress={handleManualInput}
         >
           <Text style={{ color: isDark ? "#fff" : "#000", fontSize: 16 }}>
             Input Manually
