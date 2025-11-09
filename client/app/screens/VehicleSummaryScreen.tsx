@@ -15,6 +15,7 @@ import Slider from "@react-native-community/slider";
 import { containerPromise } from "../../src/di/container";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { ChevronLeft, Car } from "lucide-react-native";
+import { navigate } from "expo-router/build/global-state/routing";
 
 const VehicleSummaryScreen: React.FC = observer(() => {
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
@@ -44,8 +45,8 @@ const VehicleSummaryScreen: React.FC = observer(() => {
   const handleAddVehicle = async () => {
     try {
       await vm.saveSelectedVehicle();
-      alert("Vehicle added successfully!");
       console.log("Saved vehicle:", vm.uiState.savedVehicle);
+      navigation.navigate("screens/BatteryLevelScreen");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add vehicle");
     }

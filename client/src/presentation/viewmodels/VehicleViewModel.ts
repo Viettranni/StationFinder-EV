@@ -216,6 +216,14 @@ export class VehicleViewModel {
     });
   }
 
+  setCurrentBatteryState(value: number) {
+    runInAction(() => {
+      if (this.state.selectedVehicle) {
+        this.state.selectedVehicle.currentBatteryState = value;
+      }
+    });
+  }
+
   selectBattery(value: number) {
     runInAction(() => {
       this.selectedBattery = value;
@@ -278,9 +286,9 @@ export class VehicleViewModel {
       model: selected.make,
       batterySizeKwh: this.selectedBattery ?? selected.batterySizeKwh?.[0] ?? 0,
       maxChargingSpeed_kW:
-        this.selectedChargingSpeed ?? selected.maxChargingSpeed_kW?.[0] ?? 0, // ✅ save charging speed
+        this.selectedChargingSpeed ?? selected.maxChargingSpeed_kW?.[0] ?? 0,
       year: new Date().getFullYear(),
-      currentBatteryState: 0,
+      currentBatteryState: this.state.selectedVehicle?.currentBatteryState ?? 0,
       averageConsumption: selected.efficiency ?? 0,
       latitude: 0,
       longitude: 0,

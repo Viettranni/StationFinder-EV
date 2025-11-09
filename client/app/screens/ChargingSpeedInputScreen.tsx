@@ -77,23 +77,21 @@ const ChargingSpeedInputScreen: React.FC = observer(() => {
         },
       ]}
     >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <ChevronLeft size={28} color={isDark ? "#fff" : "#000"} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}>
+          {vm.uiState.selectedVehicle?.brand}{" "}
+          {vm.uiState.selectedVehicle?.make || "Select Vehicle"}
+        </Text>
+        <View style={styles.placeholder} />
+      </View>
       <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <ChevronLeft size={28} color={isDark ? "#fff" : "#000"} />
-          </TouchableOpacity>
-          <Text
-            style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}
-          >
-            {vm.uiState.selectedVehicle?.make || "Select Vehicle"}
-          </Text>
-          <View style={styles.placeholder} />
-        </View>
-
         {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: isDark ? "#fff" : "#000" }]}>
@@ -213,12 +211,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "600" },
+  backButton: { padding: 0 },
+  headerTitle: { fontSize: 18, fontWeight: "700" },
   placeholder: { width: 28 },
-
   // Title left-aligned
   titleContainer: { alignItems: "flex-start", marginBottom: 20 },
   title: { fontSize: 24, fontWeight: "700", textAlign: "left" },

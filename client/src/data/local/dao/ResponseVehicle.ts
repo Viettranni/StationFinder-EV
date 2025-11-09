@@ -4,5 +4,6 @@ export interface ResponseVehicle {
   batterySizeKwh: number[];
   efficiency: number;
   maxChargingSpeed_kW: number[];
+  currentBatteryState?: number;
   imageUrl: string;
 }
