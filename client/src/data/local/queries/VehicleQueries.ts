@@ -6,6 +6,7 @@ export const CREATE_VEHICLES_TABLE = `
     model TEXT NOT NULL,
     year INTEGER,
     batterySizeKwh INTEGER,
+    maxChargingSpeed_kW INTEGER,  -- ✅ added
     currentBatteryState INTEGER,
     averageConsumption REAL,
     latitude REAL,
@@ -21,13 +22,14 @@ export const INSERT_VEHICLE = `
     model,
     year,
     batterySizeKwh,
+    maxChargingSpeed_kW,  -- ✅ added
     currentBatteryState,
     averageConsumption,
     latitude,
     longitude,
     favourites,
     createdAt
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `;
 
 export const SELECT_ALL_VEHICLES = `
@@ -44,6 +46,7 @@ export const UPDATE_VEHICLE = `
       model = ?,
       year = ?,
       batterySizeKwh = ?,
+      maxChargingSpeed_kW = ?,  -- ✅ added
       currentBatteryState = ?,
       averageConsumption = ?,
       latitude = ?,

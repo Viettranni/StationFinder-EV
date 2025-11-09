@@ -38,7 +38,7 @@ const ChargingSpeedSelectionScreen: React.FC = observer(() => {
     console.log("Selected Vehicle:", vm.uiState.selectedVehicle);
     console.log("Selected Battery:", vm.selectedBattery);
     console.log("Selected Charging Speed:", vm.selectedChargingSpeed);
-    navigation.goBack();
+    navigation.navigate("screens/VehicleSummaryScreen");
   };
 
   const handleManualInput = () => {

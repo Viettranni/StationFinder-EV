@@ -42,6 +42,10 @@ export default function RootLayout() {
           name="screens/ChargingSpeedInputScreen"
           options={{ headerShown: false, presentation: "card" }}
         />
+        <Stack.Screen
+          name="screens/VehicleSummaryScreen"
+          options={{ headerShown: false, presentation: "card" }}
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

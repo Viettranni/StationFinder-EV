@@ -15,10 +15,8 @@ import {
 import { IVehicleDao } from "./IVehicleDao";
 
 export class VehicleDao implements IVehicleDao {
-  // 🔹 Internal queue for writes
   private writeQueue: Promise<void> = Promise.resolve();
 
-  // 🔹 Get all vehicles (read-only, no queue needed)
   async getAll(): Promise<Vehicle[]> {
     const db = await getDB();
     const statement = await db.prepareAsync(SELECT_ALL_VEHICLES);
@@ -32,7 +30,6 @@ export class VehicleDao implements IVehicleDao {
     }
   }
 
-  // 🔹 Get vehicle by ID (read-only, no queue needed)
   async getById(id: number): Promise<Vehicle | null> {
     const db = await getDB();
     const statement = await db.prepareAsync(SELECT_VEHICLE_BY_ID);
@@ -46,7 +43,6 @@ export class VehicleDao implements IVehicleDao {
     }
   }
 
-  // 🔹 Insert new vehicle (queued)
   async insert(v: Partial<NewVehicle>): Promise<number> {
     return this.enqueueWrite(async () => {
       const db = await getDB();
@@ -62,6 +58,7 @@ export class VehicleDao implements IVehicleDao {
             vehicle.model,
             vehicle.year,
             vehicle.batterySizeKwh,
+            vehicle.maxChargingSpeed_kW ?? 0, // ✅ Add charging speed
             vehicle.currentBatteryState,
             vehicle.averageConsumption,
             vehicle.latitude,
@@ -79,7 +76,6 @@ export class VehicleDao implements IVehicleDao {
     });
   }
 
-  // 🔹 Update vehicle by ID (queued)
   async update(id: number, v: Partial<Omit<Vehicle, "id">>): Promise<void> {
     return this.enqueueWrite(async () => {
       const db = await getDB();
@@ -97,6 +93,7 @@ export class VehicleDao implements IVehicleDao {
             vehicle.model,
             vehicle.year,
             vehicle.batterySizeKwh,
+            vehicle.maxChargingSpeed_kW ?? 0, // ✅ Add charging speed
             vehicle.currentBatteryState,
             vehicle.averageConsumption,
             vehicle.latitude,
@@ -111,7 +108,6 @@ export class VehicleDao implements IVehicleDao {
     });
   }
 
-  // 🔹 Delete vehicle by ID (queued)
   async delete(id: number): Promise<void> {
     return this.enqueueWrite(async () => {
       const db = await getDB();
@@ -127,10 +123,8 @@ export class VehicleDao implements IVehicleDao {
     });
   }
 
-  // 🔹 Internal method to serialize writes
   private enqueueWrite<T>(fn: () => Promise<T>): Promise<T> {
     const resultPromise = this.writeQueue.then(() => fn());
-    // Replace current queue with new promise, catching errors to avoid breaking the chain
     this.writeQueue = resultPromise.then(
       () => {},
       () => {}

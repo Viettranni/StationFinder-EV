@@ -245,6 +245,9 @@ export class VehicleViewModel {
     if (vehicle.batterySizeKwh <= 0) {
       throw new Error("Battery size must be positive");
     }
+    if (vehicle.maxChargingSpeed_kW < 0) {
+      throw new Error("Max charging speed must be non-negative"); // ✅ validate charging speed
+    }
     if (vehicle.currentBatteryState < 0 || vehicle.currentBatteryState > 100) {
       throw new Error("Invalid current battery state");
     }
@@ -274,6 +277,8 @@ export class VehicleViewModel {
       brand: selected.brand,
       model: selected.make,
       batterySizeKwh: this.selectedBattery ?? selected.batterySizeKwh?.[0] ?? 0,
+      maxChargingSpeed_kW:
+        this.selectedChargingSpeed ?? selected.maxChargingSpeed_kW?.[0] ?? 0, // ✅ save charging speed
       year: new Date().getFullYear(),
       currentBatteryState: 0,
       averageConsumption: selected.efficiency ?? 0,
@@ -294,7 +299,6 @@ export class VehicleViewModel {
     const id = await this.localRepo.addVehicle(newVehicle);
     await this.fetchSavedVehicle();
 
-    // Do NOT reset custom vehicle here
     return id;
   }
 

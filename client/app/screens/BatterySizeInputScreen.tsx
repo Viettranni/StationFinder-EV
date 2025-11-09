@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
+  TextInput,
 } from "react-native";
 import { observer } from "mobx-react-lite";
 import { useNavigation } from "@react-navigation/native";
@@ -103,12 +104,20 @@ const BatterySizeInputScreen: React.FC = observer(() => {
         </View>
 
         {/* Display */}
-        <View style={styles.inputDisplay}>
-          <Text style={[styles.inputText, { color: isDark ? "#fff" : "#000" }]}>
-            {displayValue}
-          </Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[styles.inputText, { color: isDark ? "#fff" : "#000" }]}
+            keyboardType="numeric"
+            value={displayValue}
+            onChangeText={(text) => {
+              const num = parseInt(text, 10);
+              vm.selectBattery(isNaN(num) ? 0 : num);
+            }}
+            placeholder="0"
+            placeholderTextColor={isDark ? "#888" : "#ccc"}
+          />
           <Text style={[styles.unitText, { color: isDark ? "#aaa" : "#555" }]}>
-            kWh
+            kW
           </Text>
         </View>
 
@@ -190,13 +199,6 @@ const BatterySizeInputScreen: React.FC = observer(() => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      <View
-        style={[
-          styles.bottomIndicator,
-          { backgroundColor: isDark ? "#333" : "#eee" },
-        ]}
-      />
     </View>
   );
 });
@@ -210,39 +212,55 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 12,
   },
   backButton: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: "600" },
   placeholder: { width: 28 },
-  titleContainer: { alignItems: "center", marginBottom: 40 },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 14, marginTop: 6, textAlign: "center" },
-  inputDisplay: {
+
+  // Title left-aligned
+  titleContainer: { alignItems: "flex-start", marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: "700", textAlign: "left" },
+  subtitle: { fontSize: 12, marginTop: 8, textAlign: "left" },
+
+  // Input left-aligned with underline
+  inputContainer: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    marginVertical: 40,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "#888",
+    paddingBottom: 4,
+    marginVertical: 12,
+    justifyContent: "space-between",
   },
-  inputText: { fontSize: 64, fontWeight: "bold" },
-  unitText: { fontSize: 20, marginLeft: 8, marginBottom: 10 },
-  numberPad: { alignItems: "center" },
+  inputText: {
+    flex: 1,
+    fontSize: 32,
+    textAlign: "left",
+  },
+  unitText: {
+    fontSize: 20,
+    marginLeft: 8,
+  },
+
+  numberPad: { alignItems: "center", flexGrow: 1, justifyContent: "flex-end" },
   numberRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "80%",
-    marginVertical: 8,
+    width: "100%", // full width
+    marginVertical: 4,
   },
   numberButton: {
     flex: 1,
-    marginHorizontal: 8,
+    marginHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.05)",
+    backgroundColor: "rgba(100,100,100,0.2)", // different shade
   },
-  numberText: { fontSize: 28, fontWeight: "600" },
+  numberText: { fontSize: 20, fontWeight: "600" },
+
   continueButton: {
     marginTop: 32,
     borderRadius: 16,
@@ -251,11 +269,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   continueText: { fontSize: 16, fontWeight: "600" },
-  bottomIndicator: {
-    height: 4,
-    alignSelf: "center",
-    width: "20%",
-    borderRadius: 2,
-    marginBottom: 8,
-  },
 });

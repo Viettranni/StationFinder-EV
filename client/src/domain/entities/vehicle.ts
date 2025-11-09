@@ -4,6 +4,7 @@ export interface Vehicle {
   model: string;
   year: number;
   batterySizeKwh: number;
+  maxChargingSpeed_kW: number; // ✅ Added charging speed
   currentBatteryState: number;
   averageConsumption: number;
   latitude: number;
@@ -25,6 +26,7 @@ export function createVehicle(partial: Partial<NewVehicle>): NewVehicle {
     model: partial.model,
     year: partial.year ?? new Date().getFullYear(),
     batterySizeKwh: partial.batterySizeKwh ?? 0,
+    maxChargingSpeed_kW: partial.maxChargingSpeed_kW ?? 0, // ✅ ensure default
     currentBatteryState: partial.currentBatteryState ?? 1,
     averageConsumption: partial.averageConsumption ?? 0,
     latitude: partial.latitude ?? 0,
