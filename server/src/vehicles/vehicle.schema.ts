@@ -12,8 +12,11 @@ export class Vehicle extends Document {
   @Prop()
   year: number;
 
-  @Prop()
-  batterySizeKwh: number;
+  @Prop({ type: [Number], required: true })
+  batterySizeKwh: number[];
+
+  @Prop({ type: [Number], required: true })
+  maxChargingSpeed_kW: number[];
 
   @Prop()
   efficiency: number;
