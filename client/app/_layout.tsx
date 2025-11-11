@@ -38,10 +38,11 @@ export default function RootLayout() {
     <ContainerContext.Provider value={container}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-          {/* Main tab layout */}
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-          {/* Hidden or additional screens */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="screens/StartScreen"
+            options={{ headerShown: false }}
+          />
           <Stack.Screen
             name="screens/ChooseCarScreen"
             options={{ headerShown: false }}

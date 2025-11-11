@@ -15,6 +15,7 @@ import { ChevronRight, Car, Search, ChevronLeft } from "lucide-react-native";
 import { useContainer } from "../../app/_layout";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 const ChooseCarScreen: React.FC = observer(() => {
   const container = useContainer();
@@ -63,7 +64,9 @@ const ChooseCarScreen: React.FC = observer(() => {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => /*navigation.goBack()*/ {}}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("screens/StartScreen")}
+        >
           <ChevronLeft size={28} color={isDark ? "#fff" : "#000"} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: isDark ? "#fff" : "#000" }]}>
@@ -169,7 +172,11 @@ const ChooseCarScreen: React.FC = observer(() => {
                   { backgroundColor: isDark ? "#333" : "#eee" },
                 ]}
               >
-                <Car size={28} color={isDark ? "#fff" : "#333"} />
+                <Ionicons
+                  name="car-outline"
+                  size={28}
+                  color={isDark ? "#fff" : "#333"}
+                />
               </View>
 
               <View style={{ flex: 1 }}>
@@ -221,7 +228,11 @@ const ChooseCarScreen: React.FC = observer(() => {
                   { backgroundColor: isDark ? "#333" : "#eee" },
                 ]}
               >
-                <Car size={28} color={isDark ? "#fff" : "#333"} />
+                <Ionicons
+                  name="car-outline"
+                  size={28}
+                  color={isDark ? "#fff" : "#333"}
+                />
               </View>
 
               <View style={{ flex: 1 }}>

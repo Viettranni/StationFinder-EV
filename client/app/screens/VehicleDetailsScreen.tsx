@@ -36,9 +36,19 @@ const VehicleDetailsScreen: React.FC = observer(() => {
           { backgroundColor: isDark ? "#121212" : "#f9fafb" },
         ]}
       >
-        <Text style={{ color: isDark ? "#fff" : "#000" }}>
+        <Text style={{ color: isDark ? "#fff" : "#000", marginBottom: 16 }}>
           Loading vehicle...
         </Text>
+
+        <Pressable
+          onPress={() => navigation.navigate("screens/StartScreen")}
+          style={[
+            styles.startButton,
+            { backgroundColor: isDark ? "#22C55E" : "#10B981" },
+          ]}
+        >
+          <Text style={styles.startButtonText}>Go to Starting Screen</Text>
+        </Pressable>
       </View>
     );
   }
@@ -155,6 +165,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     fontSize: 16,
+  },
+  startButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  startButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
 

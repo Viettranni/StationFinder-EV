@@ -13,8 +13,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
-import { ChevronLeft, Car } from "lucide-react-native";
-import { navigate } from "expo-router/build/global-state/routing";
+import { ChevronLeft } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useContainer } from "../_layout";
 
 const VehicleSummaryScreen: React.FC = observer(() => {
@@ -91,7 +91,7 @@ const VehicleSummaryScreen: React.FC = observer(() => {
               resizeMode="contain"
             />
           ) : (
-            <Car size={80} color={textColor} />
+            <Ionicons name="car-sport-outline" size={150} color={textColor} />
           )}
         </View>
 
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     padding: 16,
     borderRadius: 12,
-    marginTop: 64,
+    marginTop: 8,
     marginBottom: 16,
   },
   vehicleMake: { fontSize: 20, fontWeight: "700" },
