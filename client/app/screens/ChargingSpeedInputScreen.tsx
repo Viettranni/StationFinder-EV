@@ -9,12 +9,13 @@ import {
 } from "react-native";
 import { observer } from "mobx-react-lite";
 import { useNavigation } from "@react-navigation/native";
-import { containerPromise } from "../../src/di/container";
+import { useContainer } from "../../app/_layout";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ChargingSpeedInputScreen: React.FC = observer(() => {
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -23,7 +24,6 @@ const ChargingSpeedInputScreen: React.FC = observer(() => {
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
       const vehicleVM = container.vehicleViewModel;
       setVm(vehicleVM);
 

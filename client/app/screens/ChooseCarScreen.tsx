@@ -12,11 +12,12 @@ import {
 import { observer } from "mobx-react-lite";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronRight, Car, Search, ChevronLeft } from "lucide-react-native";
-import { containerPromise } from "../../src/di/container";
+import { useContainer } from "../../app/_layout";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { useNavigation } from "@react-navigation/native";
 
 const ChooseCarScreen: React.FC = observer(() => {
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -25,7 +26,6 @@ const ChooseCarScreen: React.FC = observer(() => {
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
       const vehicleVM = container.vehicleViewModel;
       setVm(vehicleVM);
       await vehicleVM.fetchAvailableVehicles();

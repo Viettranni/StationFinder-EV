@@ -22,13 +22,17 @@ import { ChargeTypeViewModel } from "../presentation/viewmodels/ChargeTypeViewMo
 export class Container {
   private static instance: Container | null = null;
 
-  // Private fields for ViewModels
-  private _vehicleViewModel: VehicleViewModel | null = null;
-  private _providerViewModel: ProviderViewModel | null = null;
-  private _chargeTypeViewModel: ChargeTypeViewModel | null = null;
+  private _vehicleDao?: VehicleDao;
+  private _providerDao?: ProviderDao;
+  private _chargeTypeDao?: ChargeTypeDao;
+
+  private _vehicleViewModel?: VehicleViewModel;
+  private _providerViewModel?: ProviderViewModel;
+  private _chargeTypeViewModel?: ChargeTypeViewModel;
 
   private constructor() {}
 
+  /** Returns the singleton container instance, initializing DB/DAOs first */
   static async getInstance(): Promise<Container> {
     if (!Container.instance) {
       const container = new Container();
@@ -38,64 +42,66 @@ export class Container {
     return Container.instance;
   }
 
+  /** Initialize the database and DAOs */
   private async init(): Promise<void> {
-    // 1️⃣ Initialize local SQLite DB
+    console.log("[Container] Initializing database...");
     await initDB();
 
-    // 2️⃣ Create DAOs
-    const vehicleDao = new VehicleDao();
-    const providerDao = new ProviderDao();
-    const chargeTypeDao = new ChargeTypeDao();
+    this._vehicleDao = new VehicleDao();
+    console.log("[Container] VehicleDao initialized");
 
-    // 3️⃣ Create repositories
-    // Local repositories
-    const localVehicleRepo = new LocalVehicleRepository(vehicleDao);
-    const providerRepo = new LocalProviderRepository(providerDao);
-    const chargeTypeRepo = new LocalChargeTypeRepository(chargeTypeDao);
+    this._providerDao = new ProviderDao();
+    console.log("[Container] ProviderDao initialized");
 
-    // Remote repositories
-    const apiBaseUrl = null;
-    const vehicleApi = new VehicleApi(apiBaseUrl, true);
-    const remoteVehicleRepo = new RemoteVehicleRepository(vehicleApi);
-
-    // 4️⃣ Create ViewModels
-    // VehicleViewModel needs both local & remote repos
-    this._vehicleViewModel = new VehicleViewModel(
-      localVehicleRepo,
-      remoteVehicleRepo
-    );
-    this._providerViewModel = new ProviderViewModel(providerRepo);
-    this._chargeTypeViewModel = new ChargeTypeViewModel(chargeTypeRepo);
+    this._chargeTypeDao = new ChargeTypeDao();
+    console.log("[Container] ChargeTypeDao initialized");
   }
 
-  // 5️⃣ Safe getters
+  /** Lazy-loaded VehicleViewModel (typesafe) */
   get vehicleViewModel(): VehicleViewModel {
+    if (!this._vehicleDao) {
+      throw new Error("DAOs not initialized yet");
+    }
     if (!this._vehicleViewModel) {
-      throw new Error(
-        "VehicleViewModel not initialized. Call getInstance() first."
+      console.log("[Container] Initializing VehicleViewModel...");
+      const localRepo = new LocalVehicleRepository(this._vehicleDao);
+      const remoteRepo = new RemoteVehicleRepository(
+        new VehicleApi(null, true)
       );
+      this._vehicleViewModel = new VehicleViewModel(localRepo, remoteRepo);
+      console.log("[Container] VehicleViewModel initialized");
     }
     return this._vehicleViewModel;
   }
 
+  /** Lazy-loaded ProviderViewModel (typesafe) */
   get providerViewModel(): ProviderViewModel {
+    if (!this._providerDao) {
+      throw new Error("DAOs not initialized yet");
+    }
     if (!this._providerViewModel) {
-      throw new Error(
-        "ProviderViewModel not initialized. Call getInstance() first."
-      );
+      console.log("[Container] Initializing ProviderViewModel...");
+      const repo = new LocalProviderRepository(this._providerDao);
+      this._providerViewModel = new ProviderViewModel(repo);
+      console.log("[Container] ProviderViewModel initialized");
     }
     return this._providerViewModel;
   }
 
+  /** Lazy-loaded ChargeTypeViewModel (typesafe) */
   get chargeTypeViewModel(): ChargeTypeViewModel {
+    if (!this._chargeTypeDao) {
+      throw new Error("DAOs not initialized yet");
+    }
     if (!this._chargeTypeViewModel) {
-      throw new Error(
-        "ChargeTypeViewModel not initialized. Call getInstance() first."
-      );
+      console.log("[Container] Initializing ChargeTypeViewModel...");
+      const repo = new LocalChargeTypeRepository(this._chargeTypeDao);
+      this._chargeTypeViewModel = new ChargeTypeViewModel(repo);
+      console.log("[Container] ChargeTypeViewModel initialized");
     }
     return this._chargeTypeViewModel;
   }
 }
 
-// Export a single shared container promise
+/** Export a single shared container promise */
 export const containerPromise: Promise<Container> = Container.getInstance();

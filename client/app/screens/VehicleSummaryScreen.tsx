@@ -12,12 +12,13 @@ import { observer } from "mobx-react-lite";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
-import { containerPromise } from "../../src/di/container";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { ChevronLeft, Car } from "lucide-react-native";
 import { navigate } from "expo-router/build/global-state/routing";
+import { useContainer } from "../_layout";
 
 const VehicleSummaryScreen: React.FC = observer(() => {
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -27,7 +28,6 @@ const VehicleSummaryScreen: React.FC = observer(() => {
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
       const vehicleVM = container.vehicleViewModel;
       setVm(vehicleVM);
 

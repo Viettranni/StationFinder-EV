@@ -14,7 +14,7 @@ import { observer } from "mobx-react-lite";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { containerPromise } from "../../src/di/container";
+import { useContainer } from "../_layout";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 
 const CustomVehicleFormScreen: React.FC = observer(() => {
@@ -23,11 +23,11 @@ const CustomVehicleFormScreen: React.FC = observer(() => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
 
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
       const vehicleVM = container.vehicleViewModel;
       setVm(vehicleVM);
 

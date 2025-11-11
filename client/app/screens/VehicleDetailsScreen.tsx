@@ -12,10 +12,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { observer } from "mobx-react-lite";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
-import { containerPromise } from "../../src/di/container";
 import { ChevronLeft } from "lucide-react-native";
+import { useContainer } from "../_layout";
 
 const VehicleDetailsScreen: React.FC = observer(() => {
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
@@ -23,9 +24,7 @@ const VehicleDetailsScreen: React.FC = observer(() => {
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
-      const vehicleVm = container.vehicleViewModel;
-      setVm(vehicleVm);
+      setVm(container.vehicleViewModel);
     })();
   }, []);
 

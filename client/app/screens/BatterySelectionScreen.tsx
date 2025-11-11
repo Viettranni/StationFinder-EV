@@ -14,7 +14,7 @@ import { observer } from "mobx-react-lite";
 import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { containerPromise } from "../../src/di/container";
+import { useContainer } from "../../app/_layout";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 
 const BatterySelectionScreen: React.FC = observer(() => {
@@ -22,11 +22,11 @@ const BatterySelectionScreen: React.FC = observer(() => {
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === "dark";
 
+  const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel>();
 
   useEffect(() => {
     (async () => {
-      const container = await containerPromise;
       setVm(container.vehicleViewModel);
     })();
   }, []);
