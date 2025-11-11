@@ -247,7 +247,7 @@ const ChooseCarScreen: React.FC = observer(() => {
                   {car.brand} {car.make}
                 </Text>
                 <Text style={{ color: isDark ? "#aaa" : "#555" }}>
-                  Efficiency: {car.efficiency} Wh/km
+                  Efficiency: {car.efficiency} kWh/km
                 </Text>
               </View>
 
