@@ -118,7 +118,7 @@ export class VehicleViewModel {
 
   setSelectedCategory(category: string) {
     runInAction(() => {
-      this.state.selectedCategory = category;
+      this.state.selectedCategory = category.toLowerCase();
       this.applyFilters();
     });
   }

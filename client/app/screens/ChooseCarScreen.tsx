@@ -101,7 +101,8 @@ const ChooseCarScreen: React.FC = observer(() => {
           contentContainerStyle={styles.categoryContainer}
         >
           {vm.categories.map((c) => {
-            const active = selectedCategory === c.id;
+            const active =
+              (selectedCategory ?? "all").toLowerCase() === c.id.toLowerCase();
             return (
               <TouchableOpacity
                 key={c.id}
