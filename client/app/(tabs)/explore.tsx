@@ -1,112 +1,268 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Button,
+  Alert,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  FlatList,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
+import { observer } from "mobx-react-lite";
+import { ThemedView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { Container } from "../../src/di/container";
+import { Provider, NewProvider } from "../../src/domain/entities/Provider";
+import {
+  ChargeType,
+  NewChargeType,
+} from "../../src/domain/entities/ChargeType";
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
+type CombinedItem = Provider | ChargeType;
+// Only for testing the provider and chargetype filters
+const ExploreScreen = observer(() => {
+  const [providerVm, setProviderVm] = useState<any>(null);
+  const [chargeVm, setChargeVm] = useState<any>(null);
+  const [ready, setReady] = useState(false);
+
+  const [mode, setMode] = useState<"provider" | "charge">("provider");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [selected, setSelected] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const container = await Container.getInstance();
+      setProviderVm(container.providerViewModel);
+      setChargeVm(container.chargeTypeViewModel);
+      await Promise.all([
+        container.providerViewModel.fetchProviders(),
+        container.chargeTypeViewModel.fetchChargeTypes(),
+      ]);
+      setReady(true);
+    })();
+  }, []);
+
+  if (!ready || !providerVm || !chargeVm) {
+    return (
+      <ThemedView style={styles.centered}>
+        <ActivityIndicator size="large" />
       </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
+    );
+  }
+
+  const currentVm = mode === "provider" ? providerVm : chargeVm;
+  const items =
+    mode === "provider"
+      ? providerVm.state.providers
+      : chargeVm.state.chargeTypes;
+
+  const saveItem = async () => {
+    if (!name.trim()) return Alert.alert("Validation", "Name is required");
+    try {
+      if (mode === "provider") {
+        const provider: NewProvider = {
+          name,
+          selected: selected ? "true" : "false",
+        };
+        if (editingId) await providerVm.updateProvider(editingId, provider);
+        else await providerVm.addProvider(provider);
+      } else {
+        const chargeType: NewChargeType = {
+          type: name,
+          selected: selected ? "true" : "false",
+        };
+        if (editingId) await chargeVm.updateChargeType(editingId, chargeType);
+        else await chargeVm.addChargeType(chargeType);
+      }
+      setName("");
+      setSelected(false);
+      setEditingId(null);
+    } catch (err: any) {
+      Alert.alert("Error", err.message);
+    }
+  };
+
+  const startEdit = (item: CombinedItem) => {
+    setEditingId(item.id);
+    if ("name" in item) setName(item.name);
+    else setName(item.type);
+    setSelected(item.selected === "true");
+  };
+
+  const deleteItem = async (id: number) => {
+    Alert.alert("Confirm", "Delete this item?", [
+      { text: "Cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () =>
+          mode === "provider"
+            ? await providerVm.deleteProvider(id)
+            : await chargeVm.deleteChargeType(id),
+      },
+    ]);
+  };
+
+  const renderItem = ({ item }: { item: CombinedItem }) => {
+    const label = "name" in item ? item.name : item.type;
+    return (
+      <View style={styles.item}>
+        <ThemedText style={styles.itemTitle}>{label}</ThemedText>
+        <ThemedText>Selected: {item.selected}</ThemedText>
+        <View style={styles.buttons}>
+          <Button title="Edit" onPress={() => startEdit(item)} />
+          <Button
+            title="Delete"
+            color="red"
+            onPress={() => deleteItem(item.id)}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <ThemedView style={styles.container}>
+            <View style={styles.modeSwitch}>
+              <Button
+                title="Providers"
+                onPress={() => setMode("provider")}
+                color={mode === "provider" ? "#007AFF" : undefined}
+              />
+              <Button
+                title="Charge Types"
+                onPress={() => setMode("charge")}
+                color={mode === "charge" ? "#007AFF" : undefined}
+              />
+            </View>
+
+            <ThemedText type="title" style={styles.headerTitle}>
+              {editingId
+                ? mode === "provider"
+                  ? "Edit Provider"
+                  : "Edit Charge Type"
+                : mode === "provider"
+                ? "Add Provider"
+                : "Add Charge Type"}
             </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+
+            <TextInput
+              placeholder={
+                mode === "provider" ? "Provider Name" : "Charge Type"
+              }
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+            />
+
+            <View style={styles.row}>
+              <ThemedText>Selected</ThemedText>
+              <Switch value={selected} onValueChange={setSelected} />
+            </View>
+
+            <Button title={editingId ? "Update" : "Add"} onPress={saveItem} />
+
+            {currentVm.state.loading && (
+              <ActivityIndicator style={{ marginTop: 10 }} />
+            )}
+
+            <FlatList
+              data={items}
+              keyExtractor={(i: CombinedItem) => i.id.toString()}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContainer}
+              scrollEnabled={false}
+            />
+          </ThemedView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    paddingTop: 60, // pushes content down to make top buttons tappable
   },
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    alignItems: "center",
+    padding: 16,
+    justifyContent: "flex-start",
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modeSwitch: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 8,
+    marginVertical: 8,
+    borderRadius: 6,
+    width: "100%",
+    maxWidth: 400,
+    textAlign: "center",
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    maxWidth: 400,
+    marginVertical: 8,
+  },
+  item: {
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    paddingVertical: 10,
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+  },
+  itemTitle: {
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  buttons: {
+    flexDirection: "row",
     gap: 8,
+    marginTop: 8,
+    justifyContent: "space-between",
+  },
+  listContainer: {
+    alignItems: "center",
+    paddingBottom: 50,
   },
 });
+
+export default ExploreScreen;
