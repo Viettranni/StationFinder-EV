@@ -6,7 +6,7 @@ export interface Vehicle {
   model: string;
   year: number;
   batterySizeKwh: number;
-  maxChargingSpeed_kW: number; // ✅ Added charging speed
+  maxChargingSpeed_kW: number;
   currentBatteryState: number;
   averageConsumption: number;
   latitude: number;
