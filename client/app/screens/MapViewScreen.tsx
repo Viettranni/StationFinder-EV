@@ -7,6 +7,7 @@ import {
   StyleSheet,
   useColorScheme,
   LayoutChangeEvent,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -16,13 +17,105 @@ import {
   Sun,
   Crosshair,
   ChevronUp,
+  Zap,
 } from "lucide-react-native";
-
 
 const GAP_ABOVE_TAB = 10;
 const SHEET_HEADER_HEIGHT = 56;
 const SHEET_BODY_MAX = 320;
 const FAB_OFFSET_ABOVE_SHEET = 16;
+
+// mock data (added provider field)
+const mockChargers = [
+  {
+    id: 1,
+    name: "Tesla Supercharger",
+    location: "Downtown Center, 123 Main St",
+    provider: "Tesla",
+    price: 0.35,
+    distance: 0.8,
+    available: 6,
+    total: 8,
+    speed: "fast",
+  },
+  {
+    id: 2,
+    name: "EVgo Fast Charging",
+    location: "Park Plaza, 456 Oak Ave",
+    provider: "EVgo",
+    price: 0.42,
+    distance: 1.2,
+    available: 3,
+    total: 4,
+    speed: "fast",
+  },
+  {
+    id: 3,
+    name: "ChargePoint Station",
+    location: "Mall Parking Lot B",
+    provider: "ChargePoint",
+    price: 0.25,
+    distance: 1.5,
+    available: 8,
+    total: 10,
+    speed: "fast",
+  },
+  {
+    id: 4,
+    name: "Shell Recharge",
+    location: "Highway 101 Exit 45",
+    provider: "Shell",
+    price: 0.38,
+    distance: 2.1,
+    available: 2,
+    total: 6,
+    speed: "fast",
+  },
+  {
+    id: 5,
+    name: "Public Charging Hub",
+    location: "City Hall Parking",
+    provider: "Public",
+    price: 0.2,
+    distance: 0.5,
+    available: 12,
+    total: 15,
+    speed: "fast",
+  },
+  {
+    id: 6,
+    name: "EcoCharge Station",
+    location: "Library Street, 78 Book Rd",
+    provider: "EcoCharge",
+    price: 0.15,
+    distance: 1.8,
+    available: 4,
+    total: 5,
+    speed: "slow",
+  },
+  {
+    id: 7,
+    name: "GreenPower Point",
+    location: "Community Center",
+    provider: "GreenPower",
+    price: 0.18,
+    distance: 2.3,
+    available: 2,
+    total: 3,
+    speed: "slow",
+  },
+  {
+    id: 8,
+    name: "Basic Charge Spot",
+    location: "Riverside Park",
+    provider: "Basic",
+    price: 0.12,
+    distance: 3.0,
+    available: 1,
+    total: 2,
+    speed: "slow",
+  },
+];
 
 const MapViewScreen: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -35,7 +128,6 @@ const MapViewScreen: React.FC = () => {
   const isDark = isDarkMode || scheme === "dark";
 
   const sheetBottom = GAP_ABOVE_TAB;
-
   const fabsBottom = sheetBottom + sheetMeasuredHeight + FAB_OFFSET_ABOVE_SHEET;
 
   const onSheetLayout = (e: LayoutChangeEvent) => {
@@ -86,8 +178,7 @@ const MapViewScreen: React.FC = () => {
 
         <Pressable
           style={styles.fab}
-          onPress={() => {
-          }}
+          onPress={() => {}}
           accessibilityLabel="Center to your location"
         >
           <Crosshair size={22} color="#374151" />
@@ -112,9 +203,98 @@ const MapViewScreen: React.FC = () => {
 
           {isModalExpanded && (
             <View style={[styles.sheetBody, { maxHeight: SHEET_BODY_MAX }]}>
-              <View style={styles.sheetEmpty}>
-                <Text style={styles.sheetEmptyText}>Charger list will appear here</Text>
-              </View>
+              <ScrollView
+                style={{ width: "100%" }}
+                contentContainerStyle={{ paddingVertical: 8 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {mockChargers.map((c) => {
+                  const pct = (c.available / c.total) * 100;
+                  const pillBg =
+                    pct >= 50 ? "#10B981" : pct > 0 ? "#F59E0B" : "#EF4444";
+                  const pillText = "#FFFFFF";
+
+                  return (
+                    <Pressable
+                      key={c.id}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 4,
+                        borderBottomWidth: StyleSheet.hairlineWidth,
+                        borderBottomColor: "#E5E7EB",
+                      }}
+                    >
+                      {/* top row: name + speed icons on left, availability pill on right */}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}
+                        >
+                          <Text
+                            style={{ fontWeight: "700", fontSize: 14, color: "#0F172A" }}
+                            numberOfLines={1}
+                          >
+                            {c.name}
+                          </Text>
+                          <View style={{ flexDirection: "row", gap: 2 }}>
+                            <Zap size={14} color="#10B981" />
+                            {c.speed === "fast" && <Zap size={14} color="#10B981" />}
+                          </View>
+                        </View>
+
+                        <View
+                          style={{
+                            backgroundColor: pillBg,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 999,
+                          }}
+                        >
+                          <Text
+                            style={{ color: pillText, fontWeight: "700", fontSize: 12 }}
+                          >
+                            {c.available}/{c.total}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* location */}
+                      <Text
+                        style={{ color: "#6B7280", fontSize: 12 }}
+                        numberOfLines={1}
+                      >
+                        {c.location}
+                      </Text>
+
+                      {/* bottom meta: price · distance · provider */}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                          marginTop: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#10B981", fontWeight: "700", fontSize: 12 }}>
+                          ${c.price.toFixed(2)}/kWh
+                        </Text>
+                        <Text style={{ color: "#6B7280", fontSize: 12 }}>
+                          {c.distance.toFixed(1)} km
+                        </Text>
+                        <Text style={{ color: "#6B7280", fontSize: 12 }}>
+                          {c.provider}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -129,14 +309,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FFFFFF" },
   mapBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#FFFFFF", // replace with your Map view later
+    backgroundColor: "#FFFFFF",
     zIndex: 0,
   },
-
-  // SafeArea only for top overlays
   safeAreaTop: { backgroundColor: "transparent" },
 
-  // Top overlays
   topWrap: {
     position: "absolute",
     left: 0,
