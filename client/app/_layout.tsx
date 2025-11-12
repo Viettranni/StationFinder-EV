@@ -1,9 +1,5 @@
 import React, { useEffect, useState, createContext, useContext } from "react";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -14,9 +10,7 @@ const ContainerContext = createContext<Container | null>(null);
 export const useContainer = () => {
   const container = useContext(ContainerContext);
   if (!container)
-    throw new Error(
-      "useContainer must be used within ContainerContext.Provider"
-    );
+    throw new Error("useContainer must be used within ContainerContext.Provider");
   return container;
 };
 
@@ -31,56 +25,19 @@ export default function RootLayout() {
     })();
   }, []);
 
-  // You can show a loading screen or splash here
+  // simple loading guard
   if (!container) return null;
 
   return (
     <ContainerContext.Provider value={container}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="screens/StartScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/ChooseCarScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/BatterySelectionScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/ChargingSpeedSelectionScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/CustomVehicleFormScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/BatterySizeInputScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/ChargingSpeedInputScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/VehicleSummaryScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/BatteryLevelScreen"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="screens/VehicleDetailsScreen"
-            options={{ headerShown: false }}
-          />
+        {/* Hide headers globally inside this Stack */}
+        <Stack screenOptions={{ headerShown: false }}>
+          {/* render the tabs group */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* fallback / not-found */}
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         </Stack>
-
         <StatusBar style="auto" />
       </ThemeProvider>
     </ContainerContext.Provider>

@@ -12,8 +12,20 @@ export class VehicleService {
     const vehicle = new this.vehicleModel(createVehicleDto);
     return vehicle.save();
   }
+  
+  async createMany(vehicles: CreateVehicleDto[]) {
+    return this.vehicleModel.insertMany(vehicles);
+  }
 
   async getAllVehicles(): Promise<Vehicle[]> {
     return this.vehicleModel.find().exec();
+  }
+
+  async deleteVehicleById(id: string): Promise<{ deletedCount?: number }> {
+    return this.vehicleModel.deleteOne({ _id: id }).exec();
+  }
+
+  async deleteAll(): Promise<{ deletedCount?: number }> {
+    return this.vehicleModel.deleteMany({});
   }
 }

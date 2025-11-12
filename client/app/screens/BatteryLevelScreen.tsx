@@ -9,7 +9,7 @@ import {
   Alert,
   useColorScheme,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VehicleViewModel } from "../../src/presentation/viewmodels/VehicleViewModel";
 import { useContainer } from "../../app/_layout";
@@ -22,7 +22,6 @@ const BatteryLevelScreen: React.FC = observer(() => {
   const container = useContainer();
   const [vm, setVm] = useState<VehicleViewModel | null>(null);
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NavigationProp<any>>();
   const isDark = useColorScheme() === "dark";
 
   useEffect(() => {
@@ -36,18 +35,18 @@ const BatteryLevelScreen: React.FC = observer(() => {
   const currentBattery = vm.uiState.selectedVehicle.currentBatteryState ?? 75;
 
   const handleSkip = () => {
-    navigation.navigate("screens/VehicleDetailsScreen");
+    router.replace("/(tabs)");
   };
 
   const handleBack = () => {
-    navigation.goBack();
+    router.back();
   };
 
   const handleContinue = async () => {
     try {
       await vm.saveSelectedVehicle();
       console.log("Saved vehicle:", vm.uiState.savedVehicle);
-      navigation.navigate("screens/VehicleDetailsScreen");
+      router.replace("/(tabs)");
     } catch (err: unknown) {
       Alert.alert(
         err instanceof Error ? err.message : "Failed to save battery level"
