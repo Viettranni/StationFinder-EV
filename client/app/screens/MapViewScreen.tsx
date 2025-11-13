@@ -1,4 +1,3 @@
-// client/app/screens/MapViewScreen.tsx
 import React, { useMemo, useRef, useState } from "react";
 import {
   View,
@@ -29,12 +28,14 @@ import {
   Clock,
 } from "lucide-react-native";
 
+import FiltersModal, { FilterState, PlugOption } from "./FiltersModal";
+
 const GAP_ABOVE_TAB = 10;
 const SHEET_HEADER_HEIGHT = 56;
 const SHEET_BODY_MAX = 320;
 const FAB_OFFSET_ABOVE_SHEET = 16;
 
-// mock chargers (unchanged except provider field)
+// mock chargers
 const mockChargers = [
   { id: 1, name: "Tesla Supercharger", location: "Downtown Center, 123 Main St", provider: "Tesla", price: 0.35, distance: 0.8, available: 6, total: 8, speed: "fast" },
   { id: 2, name: "EVgo Fast Charging", location: "Park Plaza, 456 Oak Ave", provider: "EVgo", price: 0.42, distance: 1.2, available: 3, total: 4, speed: "fast" },
@@ -60,10 +61,26 @@ const helsinkiResults: Place[] = [
   { id: "s4", title: "Helsinki Central Station", subtitle: "Kaivokatu, Helsinki, Finland" },
 ];
 
+const plugOptions: PlugOption[] = [
+  { value: "CHAdeMO", label: "CHAdeMO" },
+  { value: "CCS", label: "CCS" },
+  { value: "Type 2", label: "Type 2" },
+  { value: "Tesla", label: "Tesla" },
+  { value: "GB/T", label: "GB/T" },
+  { value: "Type 1", label: "Type 1" },
+];
+
 const MapViewScreen: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isModalExpanded, setIsModalExpanded] = useState(false);
   const [sheetMeasuredHeight, setSheetMeasuredHeight] = useState<number>(SHEET_HEADER_HEIGHT);
+
+
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    plugs: ["CCS", "Type 2"],
+    showOnlyAvailable: false,
+  });
 
   // search modal state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -82,7 +99,7 @@ const MapViewScreen: React.FC = () => {
     if (h !== sheetMeasuredHeight) setSheetMeasuredHeight(h);
   };
 
-  // ----- search modal helpers -----
+  // search modal helpers
   const filteredResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -90,10 +107,7 @@ const MapViewScreen: React.FC = () => {
     return [];
   }, [query]);
 
-  const openSearch = () => {
-    setIsSearchOpen(true);
-  };
-
+  const openSearch = () => setIsSearchOpen(true);
   const closeSearch = () => {
     setIsSearchOpen(false);
     setQuery("");
@@ -123,15 +137,13 @@ const MapViewScreen: React.FC = () => {
       {/* Map placeholder background */}
       <View style={styles.mapBackground} />
 
-      {/* Top overlays */}
       <SafeAreaView style={styles.safeAreaTop}>
         <View style={[styles.topWrap, { paddingTop: insets.top + 16 }]}>
           <View style={styles.searchRow}>
-            <Pressable style={styles.iconBtn}>
+            <Pressable style={styles.iconBtn} onPress={() => setIsFiltersOpen(true)}>
               <SlidersHorizontal size={20} color="#374151" />
             </Pressable>
 
-            {/* trigger -> opens modal; looks like input */}
             <Pressable style={styles.searchBox} onPress={openSearch}>
               <View style={styles.searchInnerRow}>
                 <Search size={20} color="#9CA3AF" />
@@ -152,7 +164,7 @@ const MapViewScreen: React.FC = () => {
         </View>
       </SafeAreaView>
 
-      {/* Floating buttons */}
+      {/* floating buttons */}
       <View style={[styles.fabs, { bottom: fabsBottom }]}>
         <Pressable style={styles.fab} onPress={() => setIsDarkMode((v) => !v)} accessibilityLabel="Toggle dark mode">
           {isDark ? <Sun size={22} color="#374151" /> : <Moon size={22} color="#374151" />}
@@ -238,7 +250,7 @@ const MapViewScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* -------- Search Modal (partial height, draggable, auto-focus) -------- */}
+
       <Modal
         visible={isSearchOpen}
         transparent
@@ -249,10 +261,8 @@ const MapViewScreen: React.FC = () => {
           style={styles.modalRoot}
           behavior={Platform.select({ ios: "padding", android: undefined })}
         >
-          {/* dim backdrop */}
           <Pressable style={styles.backdrop} onPress={closeSearch} />
 
-          {/* container with top gap and rounded corners */}
           <Animated.View
             {...panResponder.panHandlers}
             style={[
@@ -261,9 +271,7 @@ const MapViewScreen: React.FC = () => {
             ]}
           >
             <SafeAreaView>
-              {/* top row: close button only */}
               <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-                {/* drag handle */}
                 <View style={{ alignItems: "center", marginBottom: 8 }}>
                   <View style={{ width: 64, height: 5, borderRadius: 999, backgroundColor: "#E5E7EB" }} />
                 </View>
@@ -273,7 +281,6 @@ const MapViewScreen: React.FC = () => {
                 </Pressable>
               </View>
 
-              {/* FULL-WIDTH search bar under the close button */}
               <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
                 <View style={styles.modalSearchBoxFull}>
                   <Search size={18} color="#6B7280" />
@@ -294,16 +301,13 @@ const MapViewScreen: React.FC = () => {
                 </View>
               </View>
 
-              {/* content */}
               <ScrollView
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
               >
-                {/* Initial hero + recents */}
                 {!query && (
                   <View>
-                    {/* Hero */}
                     <View style={{ alignItems: "center", paddingVertical: 20 }}>
                       <Text style={{ fontSize: 20, fontWeight: "700", color: "#111827", marginBottom: 4 }}>
                         Plan your route
@@ -311,7 +315,6 @@ const MapViewScreen: React.FC = () => {
                       <Text style={{ color: "#6B7280" }}>Navigate easily with no stress — (art later)</Text>
                     </View>
 
-                    {/* Recents */}
                     <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
                         <Text style={{ fontWeight: "700", color: "#111827" }}>Recent searches</Text>
@@ -332,7 +335,6 @@ const MapViewScreen: React.FC = () => {
                   </View>
                 )}
 
-                {/* Results */}
                 {!!query && filteredResults.length > 0 && (
                   <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
                     <Text style={{ fontWeight: "700", color: "#111827", marginBottom: 8 }}>Search results</Text>
@@ -348,7 +350,6 @@ const MapViewScreen: React.FC = () => {
                   </View>
                 )}
 
-                {/* No results */}
                 {!!query && filteredResults.length === 0 && (
                   <View style={{ alignItems: "center", paddingVertical: 32 }}>
                     <Text style={{ fontSize: 22, fontWeight: "700", color: "#111827", marginBottom: 6 }}>
@@ -362,6 +363,14 @@ const MapViewScreen: React.FC = () => {
           </Animated.View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <FiltersModal
+        isOpen={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        initialFilters={filters}
+        onApply={(f) => setFilters(f)}
+        plugOptions={plugOptions}
+      />
     </View>
   );
 };
@@ -503,7 +512,6 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
 
-  // --- modal styles ---
   modalRoot: { flex: 1 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.25)" },
   modalCard: {
@@ -514,7 +522,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  // full-width search box under the close button
   modalSearchBoxFull: {
     width: "100%",
     height: 44,
