@@ -9,6 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 
 const AddVehicleScreenNative = () => {
   const navigation = useNavigation<any>();
@@ -20,7 +21,7 @@ const AddVehicleScreenNative = () => {
   };
 
   const handleSkip = () => {
-    navigation.navigate("screens/VehicleDetailsScreen");
+    router.replace("/(tabs)");
   };
 
   return (
