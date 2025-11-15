@@ -188,6 +188,45 @@ export class ChargingStationViewModel {
     return count;
   }
 
+  // ======================== CONNECTOR SELECTION ========================
+  /**
+   * Toggles a connector selection.
+   * - Selecting "all" deselects everything else.
+   * - Selecting any other connector deselects "all".
+   */
+  toggleConnector(connectorId: string) {
+    runInAction(() => {
+      let newSelected: string[] = [];
+
+      if (connectorId === "all") {
+        // Always select only "all"
+        newSelected = ["all"];
+      } else {
+        const currentlySelected = this.state.selectedConnectors;
+
+        if (currentlySelected.includes(connectorId)) {
+          // Deselect connector
+          newSelected = currentlySelected.filter((c) => c !== connectorId);
+        } else {
+          // Select connector and remove "all" if it was selected
+          newSelected = [
+            ...currentlySelected.filter((c) => c !== "all"),
+            connectorId,
+          ];
+        }
+
+        // If nothing is selected after toggle, default back to "all"
+        if (newSelected.length === 0) newSelected = ["all"];
+      }
+
+      this.state.selectedConnectors = newSelected;
+    });
+
+    // Apply filters and sync DB
+    this.applyFilters();
+    this.syncSelectedConnectorsToDb().catch(console.error);
+  }
+
   // ======================== SHOW ONLY AVAILABLE ========================
   setShowOnlyAvailable(value: boolean) {
     runInAction(() => {

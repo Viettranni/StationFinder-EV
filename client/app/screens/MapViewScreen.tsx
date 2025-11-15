@@ -244,8 +244,9 @@ const MapViewScreen: React.FC = observer(() => {
 
           {/* Connector chips */}
           <View style={styles.chipsRow}>
-            {vm.connectorTypes.map((c) => {
+            {vm?.connectorTypes.map((c) => {
               const selected = selectedConnectors.includes(c.id);
+
               return (
                 <Pressable
                   key={c.id}
@@ -261,7 +262,7 @@ const MapViewScreen: React.FC = observer(() => {
                         : "#FFFFFF",
                     },
                   ]}
-                  onPress={() => handleConnectorToggle(c.id)}
+                  onPress={() => vm?.toggleConnector(c.id)} // VM handles "all" logic
                 >
                   <Text
                     style={[

@@ -68,13 +68,8 @@ const FiltersModal: React.FC<Props> = observer(
     const tileWidth = cols === 2 ? "48%" : "31.5%";
 
     const togglePlug = (value: string) => {
-      const current = [...vm.uiState.selectedConnectors];
-      const updated = current.includes(value)
-        ? current.filter((p) => p !== value)
-        : [...current, value];
-      vm.setSelectedConnectors(updated);
-
-      logUIState(); // Log after toggling
+      vm.toggleConnector(value);
+      logUIState();
     };
 
     const reset = () => {
@@ -297,7 +292,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
   },
@@ -307,6 +302,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   primaryText: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
 });
