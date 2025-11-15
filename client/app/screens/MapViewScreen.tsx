@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,13 @@ import {
   Platform,
   Animated,
   PanResponder,
+  ActivityIndicator,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { observer } from "mobx-react-lite";
 import {
   Search,
   SlidersHorizontal,
@@ -22,75 +27,36 @@ import {
   Sun,
   Crosshair,
   ChevronUp,
-  Zap,
   X,
   MapPin,
-  Clock,
+  Zap,
 } from "lucide-react-native";
-
-import FiltersModal, { FilterState, PlugOption } from "./FiltersModal";
+import FiltersModal from "./FiltersModal";
+import { ChargingStationViewModel } from "../../src/presentation/viewmodels/ChargingStationViewModel";
+import { useContainer } from "../_layout";
 
 const GAP_ABOVE_TAB = 10;
 const SHEET_HEADER_HEIGHT = 56;
 const SHEET_BODY_MAX = 320;
 const FAB_OFFSET_ABOVE_SHEET = 16;
 
-// mock chargers
-const mockChargers = [
-  { id: 1, name: "Tesla Supercharger", location: "Downtown Center, 123 Main St", provider: "Tesla", price: 0.35, distance: 0.8, available: 6, total: 8, speed: "fast" },
-  { id: 2, name: "EVgo Fast Charging", location: "Park Plaza, 456 Oak Ave", provider: "EVgo", price: 0.42, distance: 1.2, available: 3, total: 4, speed: "fast" },
-  { id: 3, name: "ChargePoint Station", location: "Mall Parking Lot B", provider: "ChargePoint", price: 0.25, distance: 1.5, available: 8, total: 10, speed: "fast" },
-  { id: 4, name: "Shell Recharge", location: "Highway 101 Exit 45", provider: "Shell", price: 0.38, distance: 2.1, available: 2, total: 6, speed: "fast" },
-  { id: 5, name: "Public Charging Hub", location: "City Hall Parking", provider: "Public", price: 0.2, distance: 0.5, available: 12, total: 15, speed: "fast" },
-  { id: 6, name: "EcoCharge Station", location: "Library Street, 78 Book Rd", provider: "EcoCharge", price: 0.15, distance: 1.8, available: 4, total: 5, speed: "slow" },
-  { id: 7, name: "GreenPower Point", location: "Community Center", provider: "GreenPower", price: 0.18, distance: 2.3, available: 2, total: 3, speed: "slow" },
-  { id: 8, name: "Basic Charge Spot", location: "Riverside Park", provider: "Basic", price: 0.12, distance: 3.0, available: 1, total: 2, speed: "slow" },
-];
-
-// mock search data
-type Place = { id: string; title: string; subtitle: string };
-const recentSearches: Place[] = [
-  { id: "r1", title: "Helsinki", subtitle: "Finland" },
-  { id: "r2", title: "Vantaa", subtitle: "Finland" },
-];
-
-const helsinkiResults: Place[] = [
-  { id: "s1", title: "Helsinki", subtitle: "Finland" },
-  { id: "s2", title: "Helsinki Airport (HEL)", subtitle: "Lentoasemantie, Vantaa, Finland" },
-  { id: "s3", title: "Helsinki Outlet", subtitle: "Tatti, Helsinki, Finland" },
-  { id: "s4", title: "Helsinki Central Station", subtitle: "Kaivokatu, Helsinki, Finland" },
-];
-
-const plugOptions: PlugOption[] = [
-  { value: "CHAdeMO", label: "CHAdeMO" },
-  { value: "CCS", label: "CCS" },
-  { value: "Type 2", label: "Type 2" },
-  { value: "Tesla", label: "Tesla" },
-  { value: "GB/T", label: "GB/T" },
-  { value: "Type 1", label: "Type 1" },
-];
-
-const MapViewScreen: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isModalExpanded, setIsModalExpanded] = useState(false);
-  const [sheetMeasuredHeight, setSheetMeasuredHeight] = useState<number>(SHEET_HEADER_HEIGHT);
-
-
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({
-    plugs: ["CCS", "Type 2"],
-    showOnlyAvailable: false,
-  });
-
-  // search modal state
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const searchInputRef = useRef<TextInput>(null);
-
+const MapViewScreen: React.FC = observer(() => {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const isDark = isDarkMode || scheme === "dark";
+  const container = useContainer();
 
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isModalExpanded, setIsModalExpanded] = useState(false);
+  const [sheetMeasuredHeight, setSheetMeasuredHeight] =
+    useState(SHEET_HEADER_HEIGHT);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [dragY] = useState(new Animated.Value(0));
+  const [vm, setVm] = useState<ChargingStationViewModel | null>(null);
+
+  const searchInputRef = useRef<TextInput>(null);
+
+  const isDark = isDarkMode || scheme === "dark";
   const sheetBottom = GAP_ABOVE_TAB;
   const fabsBottom = sheetBottom + sheetMeasuredHeight + FAB_OFFSET_ABOVE_SHEET;
 
@@ -99,169 +65,430 @@ const MapViewScreen: React.FC = () => {
     if (h !== sheetMeasuredHeight) setSheetMeasuredHeight(h);
   };
 
-  // search modal helpers
-  const filteredResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    if ("helsinki".startsWith(q)) return helsinkiResults;
-    return [];
-  }, [query]);
-
-  const openSearch = () => setIsSearchOpen(true);
-  const closeSearch = () => {
-    setIsSearchOpen(false);
-    setQuery("");
-  };
-
-  // drag-to-close for modal container
-  const dragY = useRef(new Animated.Value(0)).current;
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 4,
-      onPanResponderMove: Animated.event([null, { dy: dragY }], { useNativeDriver: false }),
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 80) {
-          Animated.timing(dragY, { toValue: 300, duration: 180, useNativeDriver: false }).start(() => {
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dy) > 4,
+      onPanResponderMove: Animated.event([null, { dy: dragY }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 80) {
+          Animated.timing(dragY, {
+            toValue: 300,
+            duration: 180,
+            useNativeDriver: false,
+          }).start(() => {
             dragY.setValue(0);
-            closeSearch();
+            setIsSearchOpen(false);
           });
         } else {
-          Animated.spring(dragY, { toValue: 0, useNativeDriver: false }).start();
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: false,
+          }).start();
         }
       },
     })
   ).current;
 
-  return (
-    <View style={styles.root}>
-      {/* Map placeholder background */}
-      <View style={styles.mapBackground} />
+  // ======================== VIEWMODEL INIT ========================
+  useEffect(() => {
+    (async () => {
+      const chargingVM = container.chargingStationViewModel;
+      setVm(chargingVM);
 
+      console.log("[MapViewScreen] Preloading stations and connectors...");
+      await Promise.all([
+        chargingVM.fetchAvailableStations(),
+        chargingVM.fetchSavedConnectors(),
+      ]);
+      console.log("[MapViewScreen] Preloading complete");
+    })();
+  }, [container]);
+
+  // Safe destructuring to avoid conditional hooks
+  const filteredStations = vm?.uiState.filteredStations ?? [];
+  const searchQuery = vm?.uiState.searchQuery ?? "";
+  const selectedConnectors = vm?.uiState.selectedConnectors ?? [];
+
+  // ======================== FUNCTION ========================
+  const logUIState = () => {
+    if (!vm) return;
+
+    const state = vm.uiState;
+
+    console.log("[MapViewScreen] UI State:", {
+      availableStations: state.availableStations.length,
+      filteredStations: state.filteredStations.length,
+      selectedStation: state.selectedStation,
+      savedStation: state.savedStation,
+      loading: state.loading,
+      error: state.error,
+      searchQuery: state.searchQuery,
+      selectedStatus: state.selectedStatus,
+      selectedConnectors: state.selectedConnectors,
+      selectedAvailable: state.showOnlyAvailable,
+    });
+  };
+
+  // ======================== WRAPPERS ========================
+  const handleSearchChange = (text: string) => {
+    console.log("[MapViewScreen] Search query changed:", text);
+    vm?.setSearchQuery(text);
+    logUIState();
+  };
+
+  const handleConnectorToggle = (connectorId: string) => {
+    console.log("[MapViewScreen] Connector selected/toggled:", connectorId);
+    const selected = vm?.uiState.selectedConnectors.includes(connectorId)
+      ? vm.uiState.selectedConnectors.filter((c) => c !== connectorId)
+      : [...vm!.uiState.selectedConnectors, connectorId];
+
+    vm?.setSelectedConnectors(selected);
+    logUIState();
+  };
+
+  const handleToggleDarkMode = () => {
+    console.log("[MapViewScreen] Dark mode toggled:", !isDarkMode);
+    setIsDarkMode((v) => !v);
+    logUIState();
+  };
+
+  const handleCenterPress = () => {
+    console.log("[MapViewScreen] Center map pressed");
+    logUIState();
+  };
+
+  const handleToggleSheet = () => {
+    console.log("[MapViewScreen] Sheet expanded toggled:", !isModalExpanded);
+    setIsModalExpanded((v) => !v);
+    logUIState();
+  };
+
+  const getFastBoltCount = (station: (typeof filteredStations)[number]) => {
+    const ultraFast = station.amountCCS ?? 0;
+    const fast = station.amountCHAdeMO ?? 0;
+    const slow = station.amountType2 ?? 0;
+
+    if (ultraFast > 0) return 3; // Ultra-fast
+    if (fast > 0) return 2; // Fast
+    if (slow > 0) return 1; // Slow
+    return 0; // No connectors
+  };
+
+  if (!vm || vm.uiState.loading) {
+    return (
+      <View
+        style={[
+          styles.root,
+          {
+            backgroundColor: isDark ? "#121212" : "#fff",
+            paddingTop: insets.top,
+          },
+        ]}
+      >
+        <ActivityIndicator size="large" color={isDark ? "#fff" : "#000"} />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[styles.root, { backgroundColor: isDark ? "#121212" : "#FFFFFF" }]}
+    >
+      <View
+        style={[
+          styles.mapBackground,
+          { backgroundColor: isDark ? "#1E1E1E" : "#E5E5E5" },
+        ]}
+      />
+
+      {/* Top search bar */}
       <SafeAreaView style={styles.safeAreaTop}>
         <View style={[styles.topWrap, { paddingTop: insets.top + 16 }]}>
           <View style={styles.searchRow}>
-            <Pressable style={styles.iconBtn} onPress={() => setIsFiltersOpen(true)}>
-              <SlidersHorizontal size={20} color="#374151" />
+            <Pressable
+              style={[
+                styles.iconBtn,
+                { backgroundColor: isDark ? "#2C2C2C" : "#FFFFFF" },
+              ]}
+              onPress={() => setIsFiltersOpen(true)}
+            >
+              <SlidersHorizontal
+                size={20}
+                color={isDark ? "#E5E7EB" : "#374151"}
+              />
             </Pressable>
 
-            <Pressable style={styles.searchBox} onPress={openSearch}>
+            <Pressable
+              style={[
+                styles.searchBox,
+                { backgroundColor: isDark ? "#2C2C2C" : "#FFFFFF" },
+              ]}
+              onPress={() => setIsSearchOpen(true)}
+            >
               <View style={styles.searchInnerRow}>
-                <Search size={20} color="#9CA3AF" />
-                <Text style={[styles.searchInput, { color: "#9CA3AF" }]}>
-                  Select the destination...
+                <Search size={20} color={isDark ? "#9CA3AF" : "#9CA3AF"} />
+                <Text
+                  style={[
+                    styles.searchInput,
+                    { color: isDark ? "#E5E7EB" : "#9CA3AF" },
+                  ]}
+                >
+                  {searchQuery || "Select the destination..."}
                 </Text>
               </View>
             </Pressable>
           </View>
 
+          {/* Connector chips */}
           <View style={styles.chipsRow}>
-            {["Charger type", "Provider", "Availability"].map((label) => (
-              <Pressable key={label} style={styles.chip}>
-                <Text style={styles.chipText}>{label}</Text>
-              </Pressable>
-            ))}
+            {vm.connectorTypes.map((c) => {
+              const selected = selectedConnectors.includes(c.id);
+              return (
+                <Pressable
+                  key={c.id}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: selected
+                        ? isDark
+                          ? "#4B5563"
+                          : "#E0E7FF"
+                        : isDark
+                        ? "#2C2C2C"
+                        : "#FFFFFF",
+                    },
+                  ]}
+                  onPress={() => handleConnectorToggle(c.id)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: selected
+                          ? isDark
+                            ? "#FFFFFF"
+                            : "#1D4ED8"
+                          : isDark
+                          ? "#E5E7EB"
+                          : "#1F2937",
+                      },
+                    ]}
+                  >
+                    {c.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </SafeAreaView>
 
-      {/* floating buttons */}
+      {/* Floating buttons */}
       <View style={[styles.fabs, { bottom: fabsBottom }]}>
-        <Pressable style={styles.fab} onPress={() => setIsDarkMode((v) => !v)} accessibilityLabel="Toggle dark mode">
-          {isDark ? <Sun size={22} color="#374151" /> : <Moon size={22} color="#374151" />}
+        <Pressable
+          style={[
+            styles.fab,
+            { backgroundColor: isDark ? "#2C2C2C" : "#FFFFFF" },
+          ]}
+          onPress={() => setIsDarkMode((v) => !v)}
+        >
+          {isDark ? (
+            <Sun size={22} color="#E5E7EB" />
+          ) : (
+            <Moon size={22} color="#374151" />
+          )}
         </Pressable>
 
-        <Pressable style={styles.fab} onPress={() => {}} accessibilityLabel="Center to your location">
-          <Crosshair size={22} color="#374151" />
+        <Pressable
+          style={[
+            styles.fab,
+            { backgroundColor: isDark ? "#2C2C2C" : "#FFFFFF" },
+          ]}
+        >
+          <Crosshair size={22} color={isDark ? "#E5E7EB" : "#374151"} />
         </Pressable>
       </View>
 
-      {/* Bottom sheet with chargers */}
+      {/* Bottom sheet */}
       <View style={[styles.sheetWrap, { bottom: sheetBottom }]}>
-        <View style={styles.sheetCard} onLayout={onSheetLayout}>
+        <View
+          style={[
+            styles.sheetCard,
+            { backgroundColor: isDark ? "#1F1F1F" : "#FFFFFF" },
+          ]}
+          onLayout={onSheetLayout}
+        >
           <Pressable
             style={[styles.sheetHeader, { height: SHEET_HEADER_HEIGHT }]}
-            onPress={() => setIsModalExpanded((v) => !v)}
+            onPress={handleToggleSheet}
           >
-            <Text style={styles.sheetTitle}>Chargers in this area</Text>
+            <Text
+              style={[
+                styles.sheetTitle,
+                { color: isDark ? "#E5E7EB" : "#111827" },
+              ]}
+            >
+              Chargers in this area
+            </Text>
             <ChevronUp
               size={20}
-              color="#4B5563"
-              style={{ transform: [{ rotate: isModalExpanded ? "180deg" : "0deg" }] }}
+              color={isDark ? "#9CA3AF" : "#4B5563"}
+              style={{
+                transform: [{ rotate: isModalExpanded ? "180deg" : "0deg" }],
+              }}
             />
           </Pressable>
 
           {isModalExpanded && (
-            <View style={[styles.sheetBody, { maxHeight: SHEET_BODY_MAX }]} >
-              <ScrollView
-                style={{ width: "100%" }}
-                contentContainerStyle={{ paddingVertical: 8 }}
-                showsVerticalScrollIndicator={false}
-              >
-                {mockChargers.map((c) => {
-                  const pct = (c.available / c.total) * 100;
-                  const pillBg = pct >= 50 ? "#10B981" : pct > 0 ? "#F59E0B" : "#EF4444";
-                  const pillText = "#FFFFFF";
+            <View style={[styles.sheetBody, { maxHeight: SHEET_BODY_MAX }]}>
+              {filteredStations.length === 0 ? (
+                <View style={{ padding: 20, alignItems: "center" }}>
+                  <Text style={{ color: isDark ? "#9CA3AF" : "#6B7280" }}>
+                    No chargers found
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView>
+                  {filteredStations.map((station) => {
+                    const selectedCount =
+                      vm?.getSelectedConnectorsCount(station) ?? 0;
+                    const totalConnectors =
+                      (station.amountCCS ?? 0) +
+                      (station.amountCHAdeMO ?? 0) +
+                      (station.amountType2 ?? 0);
 
-                  return (
-                    <Pressable
-                      key={c.id}
-                      style={{
-                        paddingVertical: 12,
-                        paddingHorizontal: 4,
-                        borderBottomWidth: StyleSheet.hairlineWidth,
-                        borderBottomColor: "#E5E7EB",
-                      }}
-                    >
-                      {/* name + bolts + availability pill */}
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
-                          <Text style={{ fontWeight: "700", fontSize: 14, color: "#0F172A" }} numberOfLines={1}>
-                            {c.name}
-                          </Text>
-                          <View style={{ flexDirection: "row", gap: 2 }}>
-                            <Zap size={14} color="#10B981" />
-                            {c.speed === "fast" && <Zap size={14} color="#10B981" />}
+                    // Optional: pill color based on availability
+                    const pct =
+                      totalConnectors > 0 ? selectedCount / totalConnectors : 0;
+                    const pillBg =
+                      pct >= 0.5 ? "#10B981" : pct > 0 ? "#F59E0B" : "#EF4444";
+                    const pillText = "#FFFFFF";
+
+                    return (
+                      <Pressable key={station.acmId} style={styles.stationRow}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                              flexShrink: 1,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontWeight: "700",
+                                fontSize: 14,
+                                color: isDark ? "#E5E7EB" : "#111827",
+                              }}
+                              numberOfLines={1}
+                            >
+                              {station.stationName}
+                            </Text>
+
+                            <View style={{ flexDirection: "row", gap: 2 }}>
+                              {Array.from({
+                                length: getFastBoltCount(station),
+                              }).map((_, i) => (
+                                <Zap key={i} size={14} color="#10B981" />
+                              ))}
+                            </View>
+                          </View>
+
+                          {/* Selected / Total connectors */}
+                          <View
+                            style={{
+                              backgroundColor: pillBg,
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 999,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: pillText,
+                                fontWeight: "700",
+                                fontSize: 12,
+                              }}
+                            >
+                              {selectedCount}/{totalConnectors}
+                            </Text>
                           </View>
                         </View>
-                        <View style={{ backgroundColor: pillBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 }}>
-                          <Text style={{ color: pillText, fontWeight: "700", fontSize: 12 }}>
-                            {c.available}/{c.total}
-                          </Text>
-                        </View>
-                      </View>
 
-                      <Text style={{ color: "#6B7280", fontSize: 12 }} numberOfLines={1}>
-                        {c.location}
-                      </Text>
-
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-                        <Text style={{ color: "#10B981", fontWeight: "700", fontSize: 12 }}>
-                          ${c.price.toFixed(2)}/kWh
+                        <Text
+                          style={{
+                            color: isDark ? "#9CA3AF" : "#6B7280",
+                            fontSize: 12,
+                          }}
+                        >
+                          {station.address}
                         </Text>
-                        <Text style={{ color: "#6B7280", fontSize: 12 }}>{c.distance.toFixed(1)} km</Text>
-                        <Text style={{ color: "#6B7280", fontSize: 12 }}>{c.provider}</Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+
+                        {/* <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 12,
+                            marginTop: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#10B981",
+                              fontWeight: "700",
+                              fontSize: 12,
+                            }}
+                          >
+                            {`$${station.price?.toFixed(2) ?? "0.00"}/kWh`}
+                          </Text>
+                          <Text
+                            style={{
+                              color: isDark ? "#9CA3AF" : "#6B7280",
+                              fontSize: 12,
+                            }}
+                          >
+                            {station.distance.toFixed(1)} km
+                          </Text>
+                          <Text
+                            style={{
+                              color: isDark ? "#9CA3AF" : "#6B7280",
+                              fontSize: 12,
+                            }}
+                          >
+                            {station.provider}
+                          </Text>
+                        </View> */}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </View>
           )}
         </View>
       </View>
 
-
-      <Modal
-        visible={isSearchOpen}
-        transparent
-        animationType="fade"
-        onShow={() => setTimeout(() => searchInputRef.current?.focus(), 50)}
-      >
+      {/* Search Modal */}
+      <Modal visible={isSearchOpen} transparent animationType="fade">
         <KeyboardAvoidingView
           style={styles.modalRoot}
-          behavior={Platform.select({ ios: "padding", android: undefined })}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Pressable style={styles.backdrop} onPress={closeSearch} />
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setIsSearchOpen(false)}
+          />
 
           <Animated.View
             {...panResponder.panHandlers}
@@ -271,12 +498,29 @@ const MapViewScreen: React.FC = () => {
             ]}
           >
             <SafeAreaView>
-              <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+              <View
+                style={{
+                  paddingHorizontal: 16,
+                  paddingTop: 12,
+                  paddingBottom: 8,
+                }}
+              >
                 <View style={{ alignItems: "center", marginBottom: 8 }}>
-                  <View style={{ width: 64, height: 5, borderRadius: 999, backgroundColor: "#E5E7EB" }} />
+                  <View
+                    style={{
+                      width: 64,
+                      height: 5,
+                      borderRadius: 999,
+                      backgroundColor: "#E5E7EB",
+                    }}
+                  />
                 </View>
 
-                <Pressable onPress={closeSearch} hitSlop={12} style={{ padding: 6, width: 32 }}>
+                <Pressable
+                  onPress={() => setIsSearchOpen(false)}
+                  hitSlop={12}
+                  style={{ padding: 6, width: 32 }}
+                >
                   <X size={20} color="#111827" />
                 </Pressable>
               </View>
@@ -286,15 +530,19 @@ const MapViewScreen: React.FC = () => {
                   <Search size={18} color="#6B7280" />
                   <TextInput
                     ref={searchInputRef}
-                    value={query}
-                    onChangeText={setQuery}
+                    value={searchQuery}
+                    onChangeText={handleSearchChange}
                     placeholder="Search for an address or place"
                     placeholderTextColor="#9CA3AF"
                     style={styles.modalSearchInput}
                     returnKeyType="search"
                   />
-                  {!!query && (
-                    <Pressable onPress={() => setQuery("")} hitSlop={12} style={{ padding: 4 }}>
+                  {!!searchQuery && (
+                    <Pressable
+                      onPress={() => vm?.setSearchQuery("")}
+                      hitSlop={12}
+                      style={{ padding: 4 }}
+                    >
                       <X size={16} color="#6B7280" />
                     </Pressable>
                   )}
@@ -302,61 +550,40 @@ const MapViewScreen: React.FC = () => {
               </View>
 
               <ScrollView
-                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
                 contentContainerStyle={{ paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
               >
-                {!query && (
-                  <View>
-                    <View style={{ alignItems: "center", paddingVertical: 20 }}>
-                      <Text style={{ fontSize: 20, fontWeight: "700", color: "#111827", marginBottom: 4 }}>
-                        Plan your route
-                      </Text>
-                      <Text style={{ color: "#6B7280" }}>Navigate easily with no stress — (art later)</Text>
-                    </View>
-
-                    <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                        <Text style={{ fontWeight: "700", color: "#111827" }}>Recent searches</Text>
-                        <Pressable onPress={() => { /* no-op in mock */ }}>
-                          <Text style={{ color: "#6B7280" }}>Clear all</Text>
-                        </Pressable>
-                      </View>
-                      {recentSearches.map((p) => (
-                        <Pressable key={p.id} style={styles.resultRow}>
-                          <Clock size={18} color="#6B7280" style={{ marginRight: 10 }} />
-                          <View style={{ flex: 1 }}>
-                            <Text numberOfLines={1} style={styles.resultTitle}>{p.title}</Text>
-                            <Text numberOfLines={1} style={styles.resultSubtitle}>{p.subtitle}</Text>
-                          </View>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {!!query && filteredResults.length > 0 && (
-                  <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-                    <Text style={{ fontWeight: "700", color: "#111827", marginBottom: 8 }}>Search results</Text>
-                    {filteredResults.map((p) => (
-                      <Pressable key={p.id} style={styles.resultRow}>
-                        <MapPin size={18} color="#111827" style={{ marginRight: 10 }} />
-                        <View style={{ flex: 1 }}>
-                          <Text numberOfLines={1} style={styles.resultTitle}>{p.title}</Text>
-                          <Text numberOfLines={1} style={styles.resultSubtitle}>{p.subtitle}</Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                {!!query && filteredResults.length === 0 && (
+                {filteredStations.length === 0 ? (
                   <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                    <Text style={{ fontSize: 22, fontWeight: "700", color: "#111827", marginBottom: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 22,
+                        fontWeight: "700",
+                        color: "#111827",
+                        marginBottom: 6,
+                      }}
+                    >
                       No results found
                     </Text>
-                    <Text style={{ color: "#6B7280" }}>Ensure typed address is correct — (art later)</Text>
                   </View>
+                ) : (
+                  filteredStations.map((station) => (
+                    <Pressable key={station.acmId} style={styles.resultRow}>
+                      <MapPin
+                        size={18}
+                        color="#111827"
+                        style={{ marginRight: 10 }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text numberOfLines={1} style={styles.resultTitle}>
+                          {station.stationName}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.resultSubtitle}>
+                          {station.address}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))
                 )}
               </ScrollView>
             </SafeAreaView>
@@ -364,16 +591,19 @@ const MapViewScreen: React.FC = () => {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Filters Modal */}
       <FiltersModal
         isOpen={isFiltersOpen}
         onClose={() => setIsFiltersOpen(false)}
-        initialFilters={filters}
-        onApply={(f) => setFilters(f)}
-        plugOptions={plugOptions}
+        vm={vm}
+        plugOptions={vm.connectorTypes.map((c) => ({
+          label: c.name,
+          value: c.id,
+        }))}
       />
     </View>
   );
-};
+});
 
 export default MapViewScreen;
 
@@ -385,7 +615,6 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   safeAreaTop: { backgroundColor: "transparent" },
-
   topWrap: {
     position: "absolute",
     left: 0,
@@ -393,34 +622,15 @@ const styles = StyleSheet.create({
     zIndex: 30,
     paddingHorizontal: 16,
   },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   iconBtn: {
     height: 44,
     width: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
-  searchBox: {
-    flex: 1,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
+  searchBox: { flex: 1, borderRadius: 18 },
   searchInnerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -428,65 +638,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#111827",
-    paddingVertical: 0,
-  },
-  chipsRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    gap: 8,
-  },
+  searchInput: { flex: 1, fontSize: 16, paddingVertical: 0 },
+  chipsRow: { marginTop: 12, flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: {
     paddingHorizontal: 16,
     height: 38,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
   },
-  chipText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1F2937",
-  },
-
-  fabs: {
-    position: "absolute",
-    right: 16,
-    zIndex: 30,
-    gap: 12,
-  },
+  chipText: { fontSize: 14, fontWeight: "700" },
+  fabs: { position: "absolute", right: 16, zIndex: 30, gap: 12 },
   fab: {
     height: 48,
     width: 48,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
-
-  sheetWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    zIndex: 25,
-  },
+  sheetWrap: { position: "absolute", left: 0, right: 0, zIndex: 25 },
   sheetCard: {
     marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     shadowColor: "#000",
     shadowOpacity: 0.18,
@@ -500,20 +672,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-  },
+  sheetTitle: { fontSize: 18, fontWeight: "700" },
   sheetBody: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#F3F4F6",
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-
+  stationRow: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+  },
   modalRoot: { flex: 1 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.25)" },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
   modalCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -521,7 +697,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: "hidden",
   },
-
   modalSearchBoxFull: {
     width: "100%",
     height: 44,
@@ -532,12 +707,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  modalSearchInput: { flex: 1, fontSize: 15, color: "#111827", paddingVertical: 0 },
-
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+    paddingVertical: 0,
+  },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
+    paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E7EB",
   },

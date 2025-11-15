@@ -20,7 +20,6 @@ import { RemoteChargingStationRepository } from "../data/repositories/RemoteChar
 // --- ViewModels ---
 import { VehicleViewModel } from "../presentation/viewmodels/VehicleViewModel";
 import { ProviderViewModel } from "../presentation/viewmodels/ProviderViewModel";
-import { ChargeTypeViewModel } from "../presentation/viewmodels/ChargeTypeViewModel";
 import { ChargingStationViewModel } from "../presentation/viewmodels/ChargingStationViewModel";
 import { ChargingStationApi } from "../data/api/ChargingStationApi";
 
@@ -34,7 +33,6 @@ export class Container {
 
   private _vehicleViewModel?: VehicleViewModel;
   private _providerViewModel?: ProviderViewModel;
-  private _chargeTypeViewModel?: ChargeTypeViewModel;
   private _chargingStationViewModel?: ChargingStationViewModel;
 
   private constructor() {}
@@ -88,16 +86,6 @@ export class Container {
       this._providerViewModel = new ProviderViewModel(repo);
     }
     return this._providerViewModel;
-  }
-
-  /** Lazy-loaded ChargeTypeViewModel */
-  get chargeTypeViewModel(): ChargeTypeViewModel {
-    if (!this._chargeTypeDao) throw new Error("DAOs not initialized yet");
-    if (!this._chargeTypeViewModel) {
-      const repo = new LocalChargeTypeRepository(this._chargeTypeDao);
-      this._chargeTypeViewModel = new ChargeTypeViewModel(repo);
-    }
-    return this._chargeTypeViewModel;
   }
 
   /** Lazy-loaded ChargingStationViewModel */

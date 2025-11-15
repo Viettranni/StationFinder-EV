@@ -18,6 +18,7 @@ export interface ChargingStationUIState {
   searchQuery: string;
   selectedStatus: string;
   selectedConnectors: string[];
+  showOnlyAvailable: boolean;
 }
 
 export class ChargingStationViewModel {
@@ -30,7 +31,8 @@ export class ChargingStationViewModel {
     error: null,
     searchQuery: "",
     selectedStatus: "all",
-    selectedConnectors: [],
+    selectedConnectors: ["all"],
+    showOnlyAvailable: false,
   };
 
   constructor(
@@ -149,7 +151,48 @@ export class ChargingStationViewModel {
   async fetchSavedConnectors() {
     const saved = await this.chargeTypeRepo.getAllChargeTypes();
     runInAction(() => {
-      this.state.selectedConnectors = saved.map((c) => c.type.toLowerCase());
+      if (saved.length > 0) {
+        this.state.selectedConnectors = saved.map((c) => c.type.toLowerCase());
+      } else {
+        this.state.selectedConnectors = ["all"]; // default to all
+      }
+    });
+  }
+
+  getSelectedConnectorsCount(station: {
+    amountCCS: number;
+    amountCHAdeMO: number;
+    amountType2: number;
+  }) {
+    // If "all" is selected or no connectors selected (fallback), return total
+    if (
+      !this.uiState.selectedConnectors.length ||
+      this.uiState.selectedConnectors.includes("all")
+    ) {
+      return (
+        (station.amountCCS ?? 0) +
+        (station.amountCHAdeMO ?? 0) +
+        (station.amountType2 ?? 0)
+      );
+    }
+
+    // Otherwise, count only selected connectors
+    let count = 0;
+    if (this.uiState.selectedConnectors.includes("ccs"))
+      count += station.amountCCS ?? 0;
+    if (this.uiState.selectedConnectors.includes("chademo"))
+      count += station.amountCHAdeMO ?? 0;
+    if (this.uiState.selectedConnectors.includes("type2"))
+      count += station.amountType2 ?? 0;
+
+    return count;
+  }
+
+  // ======================== SHOW ONLY AVAILABLE ========================
+  setShowOnlyAvailable(value: boolean) {
+    runInAction(() => {
+      this.state.showOnlyAvailable = value;
+      this.applyFilters();
     });
   }
 
@@ -201,12 +244,14 @@ export class ChargingStationViewModel {
     }
   }
 
+  // ======================== FILTERING ========================
   private applyFilters() {
     const query = this.state.searchQuery.toLowerCase();
     const status = this.state.selectedStatus.toLowerCase();
     const connectors = this.state.selectedConnectors.map((c) =>
       c.toLowerCase()
     );
+    const showOnlyAvailable = this.state.showOnlyAvailable;
 
     const filtered = this.state.availableStations.filter((s) => {
       const matchesQuery =
@@ -227,7 +272,13 @@ export class ChargingStationViewModel {
             (c === "type2" && s.amountType2 > 0)
         );
 
-      return matchesQuery && matchesStatus && matchesConnector;
+      const matchesAvailability =
+        !showOnlyAvailable ||
+        ["operational", "open"].includes(s.statusType?.toLowerCase() ?? "");
+
+      return (
+        matchesQuery && matchesStatus && matchesConnector && matchesAvailability
+      );
     });
 
     runInAction(() => {
