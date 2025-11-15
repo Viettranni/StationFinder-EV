@@ -4,6 +4,7 @@ import { initDB } from "../data/local/database";
 import { VehicleDao } from "../data/local/dao/VehicleDao";
 import { ProviderDao } from "../data/local/dao/ProviderDao";
 import { ChargeTypeDao } from "../data/local/dao/ChargeTypeDao";
+import { ChargingStationDao } from "../data/local/dao/ChargingStationDao";
 
 // --- APIs ---
 import { VehicleApi } from "../data/api/VehicleApi";
@@ -12,12 +13,15 @@ import { VehicleApi } from "../data/api/VehicleApi";
 import { LocalVehicleRepository } from "../data/repositories/LocalVehicleRepository";
 import { LocalProviderRepository } from "../data/repositories/LocalProviderRepository";
 import { LocalChargeTypeRepository } from "../data/repositories/LocalChargeTypeRepository";
+import { LocalChargingStationRepository } from "../data/repositories/LocalChargingStationRepository";
 import { RemoteVehicleRepository } from "../data/repositories/RemoteVehicleRepository";
+import { RemoteChargingStationRepository } from "../data/repositories/RemoteChargingStationRepository";
 
 // --- ViewModels ---
 import { VehicleViewModel } from "../presentation/viewmodels/VehicleViewModel";
 import { ProviderViewModel } from "../presentation/viewmodels/ProviderViewModel";
-import { ChargeTypeViewModel } from "../presentation/viewmodels/ChargeTypeViewModel";
+import { ChargingStationViewModel } from "../presentation/viewmodels/ChargingStationViewModel";
+import { ChargingStationApi } from "../data/api/ChargingStationApi";
 
 export class Container {
   private static instance: Container | null = null;
@@ -25,10 +29,11 @@ export class Container {
   private _vehicleDao?: VehicleDao;
   private _providerDao?: ProviderDao;
   private _chargeTypeDao?: ChargeTypeDao;
+  private _chargingStationDao?: ChargingStationDao;
 
   private _vehicleViewModel?: VehicleViewModel;
   private _providerViewModel?: ProviderViewModel;
-  private _chargeTypeViewModel?: ChargeTypeViewModel;
+  private _chargingStationViewModel?: ChargingStationViewModel;
 
   private constructor() {}
 
@@ -55,51 +60,56 @@ export class Container {
 
     this._chargeTypeDao = new ChargeTypeDao();
     console.log("[Container] ChargeTypeDao initialized");
+
+    this._chargingStationDao = new ChargingStationDao();
+    console.log("[Container] ChargingStationDao initialized");
   }
 
-  /** Lazy-loaded VehicleViewModel (typesafe) */
+  /** Lazy-loaded VehicleViewModel */
   get vehicleViewModel(): VehicleViewModel {
-    if (!this._vehicleDao) {
-      throw new Error("DAOs not initialized yet");
-    }
+    if (!this._vehicleDao) throw new Error("DAOs not initialized yet");
     if (!this._vehicleViewModel) {
-      console.log("[Container] Initializing VehicleViewModel...");
       const localRepo = new LocalVehicleRepository(this._vehicleDao);
       const remoteRepo = new RemoteVehicleRepository(
         new VehicleApi(null, true)
       );
       this._vehicleViewModel = new VehicleViewModel(localRepo, remoteRepo);
-      console.log("[Container] VehicleViewModel initialized");
     }
     return this._vehicleViewModel;
   }
 
-  /** Lazy-loaded ProviderViewModel (typesafe) */
+  /** Lazy-loaded ProviderViewModel */
   get providerViewModel(): ProviderViewModel {
-    if (!this._providerDao) {
-      throw new Error("DAOs not initialized yet");
-    }
+    if (!this._providerDao) throw new Error("DAOs not initialized yet");
     if (!this._providerViewModel) {
-      console.log("[Container] Initializing ProviderViewModel...");
       const repo = new LocalProviderRepository(this._providerDao);
       this._providerViewModel = new ProviderViewModel(repo);
-      console.log("[Container] ProviderViewModel initialized");
     }
     return this._providerViewModel;
   }
 
-  /** Lazy-loaded ChargeTypeViewModel (typesafe) */
-  get chargeTypeViewModel(): ChargeTypeViewModel {
-    if (!this._chargeTypeDao) {
+  /** Lazy-loaded ChargingStationViewModel */
+  get chargingStationViewModel(): ChargingStationViewModel {
+    if (!this._chargingStationDao || !this._chargeTypeDao)
       throw new Error("DAOs not initialized yet");
+
+    if (!this._chargingStationViewModel) {
+      const localRepo = new LocalChargingStationRepository(
+        this._chargingStationDao
+      );
+      const remoteRepo = new RemoteChargingStationRepository(
+        new ChargingStationApi(null, true)
+      );
+      const chargeTypeRepo = new LocalChargeTypeRepository(this._chargeTypeDao);
+
+      this._chargingStationViewModel = new ChargingStationViewModel(
+        localRepo,
+        remoteRepo,
+        chargeTypeRepo
+      );
     }
-    if (!this._chargeTypeViewModel) {
-      console.log("[Container] Initializing ChargeTypeViewModel...");
-      const repo = new LocalChargeTypeRepository(this._chargeTypeDao);
-      this._chargeTypeViewModel = new ChargeTypeViewModel(repo);
-      console.log("[Container] ChargeTypeViewModel initialized");
-    }
-    return this._chargeTypeViewModel;
+
+    return this._chargingStationViewModel;
   }
 }
 
